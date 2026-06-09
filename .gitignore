@@ -1,0 +1,53 @@
+# ================================================
+# TV CRM - Git ignore fayli
+# ================================================
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+
+# --- Virtual muhit ---
+venv/
+env/
+.venv/
+ENV/
+
+# --- Muhit o'zgaruvchilari (MAXFIY!) ---
+.env
+!.env.example
+
+# --- Ma'lumotlar bazasi fayllari ---
+*.db
+*.sqlite
+*.sqlite3
+
+# --- Logs ---
+*.log
+logs/
+
+# --- IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Node.js (Frontend) ---
+node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
+# --- Alembic (avtomatik yaratilgan) ---
+backend/alembic/versions/*.py
