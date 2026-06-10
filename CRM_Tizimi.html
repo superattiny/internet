@@ -260,7 +260,7 @@ tbody tr:last-child td{border-bottom:none}
       </div>
       <div class="nav-section">Boshqa</div>
       <div class="nav-item" onclick="showPage('chats')">
-        <span class="ni">📞</span><span>Suhbatlar</span>
+        <span class="ni">📞</span><span>Qo'ng'iroqlar</span>
       </div>
       <div class="nav-item" onclick="showPage('reminders')">
         <span class="ni">🔔</span><span>Eslatmalar</span>
@@ -479,7 +479,7 @@ const PAGE_TITLES={
   clients:{title:'Mijozlar',icon:'👥'},
   finance:{title:'Balans',icon:'💰'},
   workers:{title:'Ishchilar',icon:'👨‍🔧'},
-  chats:{title:'Suhbatlar',icon:'📞'},
+  chats:{title:'Qo\'ng\'iroqlar',icon:'📞'},
   reminders:{title:'Eslatmalar',icon:'🔔'},
   archive:{title:'Arxiv',icon:'📦'},
   users:{title:'Foydalanuvchilar',icon:'⚙️'}
@@ -840,7 +840,7 @@ function renderOrdersTable(){
 // ---------- YANGI BUYURTMA MODALI ----------
 function openNewOrderModal(clientId,clientName,clientPhone){
   const clients=DB.get('clients');
-  // MUHIM: Har safar DB dan yangi o'qiymiz — haydanmagan va aktiv ustalar
+  // MUHIM: Har safar DB dan yangi o'qiymiz — bo'shatilmagan va aktiv ustalar
   const workers=DB.get('users').filter(u=>
     (u.role==='master'||u.role==='operator') &&
     u.active===true &&
@@ -2165,13 +2165,13 @@ function renderWorkers(){
     ${firedWorkers.length>0?`
     <div class="card" style="margin-top:18px">
       <div class="card-header" style="padding-bottom:12px">
-        <div class="card-title" style="color:var(--red)">🚫 Ishdan haydangan ishchilar</div>
+        <div class="card-title" style="color:var(--red)">🚫 Ishdan bo'shatilgan ishchilar</div>
         <span style="font-size:13px;color:var(--text2)">${firedWorkers.length} ta</span>
       </div>
       <div class="table-wrap" style="border:none;border-radius:0">
       <table><thead><tr>
         <th>Ishchi</th><th>Lavozimi</th><th>Sabab</th>
-        <th>Kim haydi</th><th>Sana</th><th>Balans</th><th>Amal</th>
+        <th>Kim bo'shatdi</th><th>Sana</th><th>Balans</th><th>Amal</th>
       </tr></thead><tbody>
       ${firedWorkers.map(w=>`<tr style="opacity:.75">
         <td>
@@ -2256,8 +2256,8 @@ function buildWorkersTable(workers){
         ${w.id!==currentUser.id?`
         <button class="btn btn-sm ${w.active?'btn-danger':'btn-success'}"
           onclick="toggleWorker(${w.id})"
-          title="${w.active?'Ishdan haydash':'Qayta ishga olish'}">
-          ${w.active?'🚫 Haydash':'🔓 Qayta olish'}
+          title="${w.active?'Ishdan bo\'shatish':'Qayta ishga olish'}">
+          ${w.active?'🚫 Ishdan bo\'shatish':'🔓 Qayta olish'}
         </button>`:''}
       </div>
     </td>
@@ -2402,7 +2402,7 @@ function toggleWorker(id){
   if(!w)return;
   if(w.id===currentUser.id){toast("O'zingizni bloklay olmaysiz!",'error');return;}
   if(w.active){
-    // Bloklash — to'liq haydash emas
+    // Bloklash — to'liq bo'shatish emas
     openFireWorkerModal(id);
   } else {
     // Qayta ishga olish
@@ -2421,7 +2421,7 @@ function openFireWorkerModal(id){
   if(!w)return;
   openModal('modalFire',`
     <div class="modal-header">
-      <div class="modal-title">🚫 Ishdan haydash — ${w.name}</div>
+      <div class="modal-title">🚫 Ishdan bo'shatish — ${w.name}</div>
       <button class="modal-close" onclick="closeModal('modalFire')">✕</button>
     </div>
     <div class="modal-body">
@@ -2433,16 +2433,16 @@ function openFireWorkerModal(id){
       <div style="background:var(--card2);padding:12px;border-radius:10px;margin-bottom:14px;font-size:13px">
         <div>💰 Joriy balans: <b style="color:var(--green)">${fmtMoney(w.balance||0)}</b></div>
         <div style="margin-top:4px;color:var(--text2)">
-          ⚠️ Ishdan haydalgandan keyin balans o'zgarmaydi. Avval ish haqi to'lang!
+          ⚠️ Ishdan bo'shatilgandan keyin balans o'zgarmaydi. Avval ish haqi to'lang!
         </div>
       </div>
       <div class="form-group">
-        <label>Ishdan haydash sababi <span style="color:var(--red)">*</span></label>
+        <label>Ishdan bo'shatish sababi <span style="color:var(--red)">*</span></label>
         <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:10px">
           ${[
             {val:'sifat',    label:'👎 Ish sifati past'},
             {val:'intizom',  label:'⏰ Intizom buzilishi'},
-            {val:'ishtan',   label:'✋ O\'zi ishtaxoni bilan ketdi'},
+            {val:'ishtan',   label:'✋ O\'z xohishi bilan ketdi'},
             {val:'qisqarish',label:'📉 Shtat qisqarishi'},
             {val:'boshqa',   label:'📝 Boshqa sabab'},
           ].map(s=>`
@@ -2463,7 +2463,7 @@ function openFireWorkerModal(id){
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modalFire')">Bekor</button>
-      <button class="btn btn-danger" onclick="confirmFire(${id})">🚫 Ishdan haydash</button>
+      <button class="btn btn-danger" onclick="confirmFire(${id})">🚫 Ishdan bo'shatish</button>
     </div>
   `,'modal-md');
 }
@@ -2472,7 +2472,7 @@ function confirmFire(id){
   const sabab = document.querySelector('input[name="fireSabab"]:checked')?.value;
   const SABAB = {
     sifat:'Ish sifati past', intizom:'Intizom buzilishi',
-    ishtan:"O'zi ishtaxoni bilan ketdi", qisqarish:'Shtat qisqarishi', boshqa:'Boshqa'
+    ishtan:"O'z xohishi bilan ketdi", qisqarish:'Shtat qisqarishi', boshqa:'Boshqa'
   };
   const izoh = document.getElementById('fireIzoh').value.trim();
   if(!sabab){toast('Sabab tanlang!','error');return;}
@@ -2489,7 +2489,7 @@ function confirmFire(id){
   DB.set('users',users);
 
   closeModal('modalFire');
-  toast(`🚫 ${w.name} ishdan haydaldi`,'info');
+  toast(`🚫 ${w.name} ishdan bo'shatildi`,'info');
   renderWorkers();
 }
 
@@ -2543,22 +2543,22 @@ function saveSalary(wId){
 }
 
 // ================================================================
-//  SUHBATLAR SAHIFASI
+//  QO'NG'IROQLAR SAHIFASI
 // ================================================================
 function renderChats(){
   const chats=DB.get('chats');
   document.getElementById('page-chats').innerHTML=`
     <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
-      <button class="btn btn-purple" onclick="openChatModal()">＋ Yangi Suhbat</button>
+      <button class="btn btn-purple" onclick="openChatModal()">＋ Yangi Qo'ng'iroq</button>
     </div>
     <div class="card">
       <div class="card-header" style="padding-bottom:12px">
-        <div class="card-title">📞 Suhbatlar tarixi</div>
+        <div class="card-title">📞 Qo'ng'iroqlar tarixi</div>
       </div>
       <div style="padding:16px 20px">
       ${chats.length===0?`<div class="empty-state">
         <div class="empty-icon">📞</div>
-        <div class="empty-title">Suhbatlar yo'q</div>
+        <div class="empty-title">Qo'ng'iroqlar yo'q</div>
         <div style="margin-top:12px"><button class="btn btn-purple" onclick="openChatModal()">＋ Yozish</button></div>
         </div>`:`
         <div style="display:flex;flex-direction:column;gap:10px">
@@ -2795,7 +2795,7 @@ function renderArchive(){
         font-weight:700;font-size:13px;transition:all .15s;
         background:${archiveTab==='workers'?'var(--red)':'transparent'};
         color:${archiveTab==='workers'?'white':'var(--text2)'}">
-        🚫 Haydangan ishchilar
+        🚫 Ishdan bo'shatilgan ishchilar
         ${firedUsers.length>0?`<span style="background:rgba(255,255,255,.3);
           border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px">
           ${firedUsers.length}</span>`:''}
@@ -2858,22 +2858,22 @@ function renderArchive(){
       </div>
     </div>`:''}
 
-    <!-- TAB 2: HAYDANGAN ISHCHILAR -->
+    <!-- TAB 2: ISHDAN BO'SHATILGAN ISHCHILAR -->
     ${archiveTab==='workers'?`
     <div class="card">
       <div class="card-header" style="padding-bottom:14px">
-        <div class="card-title" style="color:var(--red)">🚫 Ishdan haydangan ishchilar</div>
+        <div class="card-title" style="color:var(--red)">🚫 Ishdan bo'shatilgan ishchilar</div>
         <span style="font-size:13px;color:var(--text2)">${firedUsers.length} ta</span>
       </div>
       ${firedUsers.length===0?`<div class="empty-state">
         <div class="empty-icon">✅</div>
-        <div class="empty-title">Haydangan ishchilar yo'q</div>
+        <div class="empty-title">Ishdan bo'shatilgan ishchilar yo'q</div>
         <div class="empty-text">Barcha ishchilar faol</div>
       </div>`:`
       <div class="table-wrap" style="border:none;border-radius:0">
       <table><thead><tr>
         <th>Ishchi</th><th>Lavozim</th><th>Telefon</th>
-        <th>Haydash sababi</th><th>Kim haydi</th><th>Sana</th>
+        <th>Bo'shatish sababi</th><th>Kim bo'shatdi</th><th>Sana</th>
         <th>Balansi</th><th>Qarzi</th><th>Bajargan ishlari</th><th>Amal</th>
       </tr></thead><tbody>
       ${firedUsers.map(w=>{
