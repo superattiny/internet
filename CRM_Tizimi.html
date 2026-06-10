@@ -840,7 +840,12 @@ function renderOrdersTable(){
 // ---------- YANGI BUYURTMA MODALI ----------
 function openNewOrderModal(clientId,clientName,clientPhone){
   const clients=DB.get('clients');
-  const workers=DB.get('users').filter(u=>u.role==='master'&&u.active);
+  // MUHIM: Har safar DB dan yangi o'qiymiz — haydanmagan va aktiv ustalar
+  const workers=DB.get('users').filter(u=>
+    (u.role==='master'||u.role==='operator') &&
+    u.active===true &&
+    !u.fired
+  );
   const defDeadline=addDays(3);
   openModal('modalNewOrder',`
     <div class="modal-header">
@@ -899,26 +904,37 @@ function openNewOrderModal(clientId,clientName,clientPhone){
           </select>
         </div>
         <div class="form-group" style="grid-column:1/-1">
-          <label>👨‍🔧 Ustalar biriktirish (bir yoki bir nechta)</label>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;
-            background:var(--card2);border:1.5px solid var(--border);border-radius:8px;padding:10px">
+          <label>👨‍🔧 Ishchilar biriktirish</label>
+          <div style="background:var(--card2);border:1.5px solid var(--border);border-radius:8px;padding:10px">
             ${workers.length===0
-              ? `<span style="color:var(--text2);font-size:13px">Ustalar yo'q — avval qo'shing</span>`
-              : workers.map(w=>`
-            <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;
-              background:var(--card);border:1.5px solid var(--border);border-radius:8px;cursor:pointer;
-              transition:all .15s" onmouseover="this.style.borderColor='var(--purple)'"
-              onmouseout="this.style.borderColor='var(--border)'">
-              <input type="checkbox" name="orderMasters" value="${w.id}"
-                style="accent-color:var(--purple);width:14px;height:14px">
-              <div>
-                <div style="font-size:12.5px;font-weight:600">${w.name}</div>
-                <div style="font-size:11px;color:var(--text2)">${w.commission}% komisyon</div>
-              </div>
-            </label>`).join('')}
+              ? `<div style="color:var(--text2);font-size:13px;text-align:center;padding:10px">
+                  Faol ishchilar yo'q —
+                  <span onclick="closeModal('modalNewOrder');showPage('workers')"
+                    style="color:var(--purple2);cursor:pointer;text-decoration:underline">
+                    Ishchilar bo'limiga o'ting
+                  </span>
+                 </div>`
+              : `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:7px">
+              ${workers.map(w=>`
+              <label style="display:flex;align-items:center;gap:8px;padding:8px 10px;
+                background:var(--card);border:1.5px solid var(--border);border-radius:8px;
+                cursor:pointer;transition:all .15s"
+                onmouseover="this.style.borderColor='var(--purple)';this.style.background='rgba(124,58,237,.08)'"
+                onmouseout="if(!this.querySelector('input').checked){this.style.borderColor='var(--border)';this.style.background='var(--card)'}">
+                <input type="checkbox" name="orderMasters" value="${w.id}"
+                  style="accent-color:var(--purple);width:14px;height:14px"
+                  onchange="this.closest('label').style.borderColor=this.checked?'var(--purple)':'var(--border)';this.closest('label').style.background=this.checked?'rgba(124,58,237,.1)':'var(--card)'">
+                <div>
+                  <div style="font-size:12.5px;font-weight:700">${w.name}</div>
+                  <div style="font-size:11px;color:var(--text2)">
+                    ${w.role==='master'?'👷 Usta':'🖥 Operator'} · ${w.commission||0}%
+                  </div>
+                </div>
+              </label>`).join('')}
+              </div>`}
           </div>
           <div style="font-size:11.5px;color:var(--text2);margin-top:5px">
-            💡 Bir nechta usta tanlang — pul ular o'rtasida teng taqsimlanadi
+            💡 Bir yoki bir nechta ishchi tanlang (majburiy emas)
           </div>
         </div>
         <div class="form-group">
@@ -2334,14 +2350,13 @@ function saveNewWorker(){
     phone:document.getElementById('wPhone').value.trim(),
     role:document.getElementById('wRole').value,
     commission:parseInt(document.getElementById('wCommission').value)||0,
-    balance:0,active:true});
+    balance:0,active:true,fired:false});
   DB.set('users',users);
   closeModal('modalNewWorker');
-  toast('✅ Ishchi qo\'shildi');
+  toast('✅ ' + name + ' ishchi qo\'shildi');
   renderWorkers();
-  // Buyurtma formasida ishchilar ro'yxatini yangilash (agar ochiq bo'lsa)
-  const orderMasterDiv = document.querySelector('#modalNewOrder .modal-body [name="orderMasters"]');
-  if(orderMasterDiv) openNewOrderModal(); // Formani qayta ochish o'rniga yopish
+  // Ustalar ro'yxatini ham yangilaymiz
+  if(document.getElementById('page-ustalar')?.style.display!=='none') renderUstalar();
 }
 
 function editWorker(id){
