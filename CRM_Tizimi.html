@@ -413,7 +413,7 @@ const NEXT_STATUS={
   diagnosing:['waiting','in_repair','cancelled'],
   waiting:['in_repair','cancelled'],
   in_repair:['done','waiting','cancelled'],
-  done:['delivered','cancelled'],
+  done:['yakunlash'],
   delivered:[],cancelled:[]
 };
 
@@ -1085,9 +1085,9 @@ function openStatusModal(id){
             border:2px solid var(--border);border-radius:10px;cursor:pointer;transition:all .15s"
             onmouseover="this.style.borderColor='var(--purple)'" onmouseout="checkStatusBorder(this)">
             <input type="radio" name="newStatus" value="${s}" style="accent-color:var(--purple)">
-            <span style="font-size:16px">${STATUS_ICON[s]}</span>
-            <span style="font-weight:600;font-size:13.5px">${STATUS_LABEL[s]}</span>
-            ${s==='delivered'?'<span class="badge b-done" style="margin-left:auto;font-size:10px">To\'lov kerak</span>':''}
+            <span style="font-size:16px">${STATUS_ICON[s]||'🔄'}</span>
+            <span style="font-weight:600;font-size:13.5px">${s==='yakunlash'?'🏁 Buyurtmani yakunlash':STATUS_LABEL[s]}</span>
+            ${s==='yakunlash'?'<span class="badge b-done" style="margin-left:auto;font-size:10px">Tuzatildi/Tuzatilmadi</span>':''}
             ${s==='cancelled'?'<span class="badge b-cancelled" style="margin-left:auto;font-size:10px">Arxivlanadi</span>':''}
           </label>`).join('')}
         </div>
@@ -1115,6 +1115,13 @@ function saveStatus(orderId){
   const newStatus=selected.value;
   const comment=document.getElementById('statusComment').value.trim();
 
+  // "yakunlash" tanlansa — alohida yakunlash modali ochiladi
+  if(newStatus==='yakunlash'){
+    closeModal('modalStatus');
+    setTimeout(()=>openYakunlashModal(orderId),200);
+    return;
+  }
+
   const orders=DB.get('orders');
   const o=orders.find(x=>x.id===orderId);
   if(!o)return;
@@ -1132,6 +1139,252 @@ function saveStatus(orderId){
   if(newStatus==='delivered'&&!o.isPaid){
     setTimeout(()=>openPaymentModal(orderId),300);
   }
+  refreshAll();
+  if(currentPage==='orders')renderOrders();
+  if(currentPage==='dashboard')renderDashboard();
+}
+
+// ================================================================
+//  BUYURTMANI YAKUNLASH MODALI
+//  Tuzatildi → pul tasdiqlash → arxiv
+//  Tuzatilmadi → sabab → arxiv
+// ================================================================
+function openYakunlashModal(id){
+  const o=DB.get('orders').find(x=>x.id===id);
+  if(!o)return;
+
+  openModal('modalYakunlash',`
+    <div class="modal-header">
+      <div class="modal-title">🏁 Buyurtmani yakunlash — ${o.num}</div>
+      <button class="modal-close" onclick="closeModal('modalYakunlash')">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Mijoz ma'lumoti -->
+      <div style="background:var(--card2);padding:12px 14px;border-radius:10px;margin-bottom:18px;font-size:13px">
+        <div style="font-weight:600">${o.clientName}</div>
+        <div style="color:var(--text2);margin-top:2px">${o.clientPhone||''} · ${o.tvBrand||''} ${o.tvModel||''}</div>
+      </div>
+
+      <!-- Natija tanlash -->
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin-bottom:12px">
+        Natija
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px">
+
+        <!-- Tuzatildi -->
+        <label id="lbl_tuzatildi" style="display:flex;align-items:flex-start;gap:12px;padding:14px;
+          border:2px solid var(--border);border-radius:12px;cursor:pointer;transition:all .15s"
+          onclick="selectYakunNatija('tuzatildi')">
+          <input type="radio" name="yakunNatija" value="tuzatildi" style="accent-color:var(--green);margin-top:2px">
+          <div>
+            <div style="font-weight:700;font-size:14px;color:var(--green)">✅ Tuzatildi</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:3px">Buyurtma muvaffaqiyatli bajarildi, to'lov qabul qilinadi</div>
+          </div>
+        </label>
+
+        <!-- Tuzatilmadi -->
+        <label id="lbl_tuzatilmadi" style="display:flex;align-items:flex-start;gap:12px;padding:14px;
+          border:2px solid var(--border);border-radius:12px;cursor:pointer;transition:all .15s"
+          onclick="selectYakunNatija('tuzatilmadi')">
+          <input type="radio" name="yakunNatija" value="tuzatilmadi" style="accent-color:var(--red);margin-top:2px">
+          <div>
+            <div style="font-weight:700;font-size:14px;color:var(--red)">❌ Tuzatilmadi</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:3px">Buyurtma bajarilmadi, sabab kiritiladi</div>
+          </div>
+        </label>
+      </div>
+
+      <!-- TUZATILDI: To'lov qismi -->
+      <div id="qism_tuzatildi" style="display:none">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin-bottom:12px">
+          💳 To'lov ma'lumotlari
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">
+          <div class="form-group">
+            <label>To'lov summasi (so'm) <span style="color:var(--red)">*</span></label>
+            <input type="number" id="yakunSumma" placeholder="250000" min="0"
+              value="${o.estimatedPrice||''}"
+              style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;
+              background:var(--card2);color:var(--text);font-size:14px;outline:none;font-family:inherit">
+          </div>
+          <div class="form-group">
+            <label>To'lov usuli</label>
+            <select id="yakunPayMethod" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);
+              border-radius:8px;background:var(--card2);color:var(--text);font-size:14px;outline:none;font-family:inherit">
+              <option value="cash">💵 Naqd pul</option>
+              <option value="card">💳 Plastik karta</option>
+              <option value="transfer">🏦 Bank o'tkazmasi</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Izoh (ixtiyoriy)</label>
+          <input id="yakunIzoh" placeholder="Mijoz mamnun, to'liq to'ladi..."
+            style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;
+            background:var(--card2);color:var(--text);font-size:14px;outline:none;font-family:inherit">
+        </div>
+      </div>
+
+      <!-- TUZATILMADI: Sabab qismi -->
+      <div id="qism_tuzatilmadi" style="display:none">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin-bottom:12px">
+          ❌ Tuzatilmagan sababi
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+          ${[
+            {val:'qimmat', icon:'💸', label:'Narxi qimmat', desc:'Mijoz to\'lov narxiga rozi bo\'lmadi'},
+            {val:'ehtiyot', icon:'🔩', label:'Ehtiyot qism yo\'q', desc:'Kerakli qism topilmadi'},
+            {val:'murakkab', icon:'⚙️', label:'Juda murakkab', desc:'Texnik jihatdan tuzatib bo\'lmadi'},
+            {val:'mijoz', icon:'🚶', label:'Mijoz olib ketdi', desc:'Mijoz tuzatmasdan olib ketdi'},
+            {val:'boshqa', icon:'📝', label:'Boshqa sabab', desc:'Quyida izohlang'},
+          ].map(s=>`
+          <label onclick="selectTuzatilmadiSabab('${s.val}')" id="lbl_sabab_${s.val}"
+            style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;
+            border:1.5px solid var(--border);border-radius:10px;cursor:pointer;transition:all .15s">
+            <input type="radio" name="tuzatilmadiSabab" value="${s.val}" style="accent-color:var(--red);margin-top:3px">
+            <div>
+              <div style="font-weight:600;font-size:13px">${s.icon} ${s.label}</div>
+              <div style="font-size:11.5px;color:var(--text2);margin-top:2px">${s.desc}</div>
+            </div>
+          </label>`).join('')}
+        </div>
+        <div class="form-group">
+          <label>Qo'shimcha izoh</label>
+          <textarea id="tuzatilmadiIzoh" rows="2" placeholder="Qo'shimcha ma'lumot..."
+            style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;
+            background:var(--card2);color:var(--text);font-size:14px;outline:none;
+            font-family:inherit;resize:vertical;min-height:70px"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalYakunlash')">Bekor</button>
+      <button id="btnYakunSaqlash" class="btn btn-primary" style="width:auto;opacity:.5;cursor:not-allowed"
+        disabled onclick="saveYakunlash(${o.id})">
+        🏁 Yakunlash
+      </button>
+    </div>
+  `,'modal-md');
+}
+
+function selectYakunNatija(natija){
+  // Labellarni yangilash
+  document.getElementById('lbl_tuzatildi').style.borderColor=
+    natija==='tuzatildi'?'var(--green)':'var(--border)';
+  document.getElementById('lbl_tuzatilmadi').style.borderColor=
+    natija==='tuzatilmadi'?'var(--red)':'var(--border)';
+
+  // Qismlarni ko'rsatish/yashirish
+  document.getElementById('qism_tuzatildi').style.display=
+    natija==='tuzatildi'?'block':'none';
+  document.getElementById('qism_tuzatilmadi').style.display=
+    natija==='tuzatilmadi'?'block':'none';
+
+  // Tugmani faollashtirish
+  const btn=document.getElementById('btnYakunSaqlash');
+  btn.disabled=false;
+  btn.style.opacity='1';
+  btn.style.cursor='pointer';
+  btn.style.background=natija==='tuzatildi'?'var(--green)':'var(--red)';
+  btn.textContent=natija==='tuzatildi'?'✅ Tuzatildi — Yakunlash':'❌ Tuzatilmadi — Yopish';
+}
+
+function selectTuzatilmadiSabab(val){
+  // Sabab labellarini yangilash
+  ['qimmat','ehtiyot','murakkab','mijoz','boshqa'].forEach(s=>{
+    const el=document.getElementById('lbl_sabab_'+s);
+    if(el) el.style.borderColor=s===val?'var(--red)':'var(--border)';
+  });
+}
+
+function saveYakunlash(orderId){
+  const natija=document.querySelector('input[name="yakunNatija"]:checked')?.value;
+  if(!natija){toast('Natija tanlanmadi!','error');return;}
+
+  const orders=DB.get('orders');
+  const o=orders.find(x=>x.id===orderId);
+  if(!o)return;
+
+  if(natija==='tuzatildi'){
+    // ── Tuzatildi ────────────────────────────────────────
+    const summa=parseFloat(document.getElementById('yakunSumma').value);
+    if(!summa||summa<=0){toast("To'lov summasi kiritilishi shart!",'error');return;}
+
+    const method=document.getElementById('yakunPayMethod').value;
+    const izoh=document.getElementById('yakunIzoh').value.trim();
+
+    o.status='delivered';
+    o.finalPrice=summa;
+    o.isPaid=true;
+    o.payMethod=method;
+    o.updatedAt=today();
+    o.archived=true;
+    o.history=o.history||[];
+    o.history.push({
+      status:'delivered',
+      comment:`✅ Tuzatildi. To'lov: ${fmtMoney(summa)} (${method==='cash'?'Naqd':method==='card'?'Karta':"O'tkazma"})${izoh?' — '+izoh:''}`,
+      by:currentUser.name, date:now()
+    });
+
+    // Ustaga komisyon hisoblash
+    if(o.masterId){
+      const users=DB.get('users');
+      const master=users.find(u=>u.id===o.masterId);
+      if(master&&(master.commission||0)>0){
+        const komissyon=Math.round(summa*master.commission/100);
+        master.balance=(master.balance||0)+komissyon;
+        DB.set('users',users);
+        toast(`💰 ${master.name}ga komisyon: ${fmtMoney(komissyon)}`,'info');
+      }
+    }
+
+    // Kassaga kirim
+    const fin=DB.getObj('finance');
+    fin.balance=(fin.balance||0)+summa;
+    fin.totalIncome=(fin.totalIncome||0)+summa;
+    DB.setObj('finance',fin);
+
+    // Tranzaksiya
+    const tr=DB.get('transactions');
+    tr.push({id:nextId(tr),type:'income',amount:summa,
+      desc:`Buyurtma to'lovi: ${o.num} — ${o.clientName}`,date:today(),orderId});
+    DB.set('transactions',tr);
+
+    // Mijoz statistika
+    const clients=DB.get('clients');
+    const cl=clients.find(c=>c.id===o.clientId);
+    if(cl){cl.totalSpent=(cl.totalSpent||0)+summa;DB.set('clients',clients);}
+
+    DB.set('orders',orders);
+    closeModal('modalYakunlash');
+    toast(`🎉 Buyurtma yakunlandi! To'lov: ${fmtMoney(summa)}`);
+
+  } else {
+    // ── Tuzatilmadi ──────────────────────────────────────
+    const sabab=document.querySelector('input[name="tuzatilmadiSabab"]:checked')?.value;
+    const SABAB_LABEL={
+      qimmat:'Narxi qimmat',ehtiyot:"Ehtiyot qism yo'q",
+      murakkab:'Juda murakkab',mijoz:'Mijoz olib ketdi',boshqa:'Boshqa'
+    };
+    const izoh=document.getElementById('tuzatilmadiIzoh').value.trim();
+    const cancelText=sabab?SABAB_LABEL[sabab]:'Sabab ko\'rsatilmadi';
+
+    o.status='cancelled';
+    o.updatedAt=today();
+    o.archived=true;
+    o.cancelReason=cancelText+(izoh?' — '+izoh:'');
+    o.history=o.history||[];
+    o.history.push({
+      status:'cancelled',
+      comment:`❌ Tuzatilmadi: ${o.cancelReason}`,
+      by:currentUser.name, date:now()
+    });
+
+    DB.set('orders',orders);
+    closeModal('modalYakunlash');
+    toast(`📦 Buyurtma yopildi: ${cancelText}`,'info');
+  }
+
   refreshAll();
   if(currentPage==='orders')renderOrders();
   if(currentPage==='dashboard')renderDashboard();
