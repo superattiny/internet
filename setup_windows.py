@@ -84,8 +84,9 @@ python_path = os.path.join(venv_dir, 'Scripts', 'python.exe')
 
 # 4. Kutubxonalar
 info("Python kutubxonalari o'rnatilmoqda (2-3 daqiqa)...")
-subprocess.run([pip_path, 'install', '--upgrade', 'pip', '-q'], check=True)
-subprocess.run([pip_path, 'install', '-r',
+# pip yangilash (xato bo'lsa o'tkazib yuborish)
+subprocess.run([python_path, '-m', 'pip', 'install', '--upgrade', 'pip', '-q'])
+subprocess.run([python_path, '-m', 'pip', 'install', '-r',
     os.path.join(BACKEND,'requirements.txt'), '-q'], check=True)
 ok("Python kutubxonalari o'rnatildi")
 
