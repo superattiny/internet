@@ -620,7 +620,7 @@ function renderDashboard(){
               <td><span style="font-family:monospace;font-weight:700;color:var(--purple2)">${o.num}</span></td>
               <td><div style="font-weight:600;font-size:13px">${o.clientName}</div>
                 <div style="font-size:11px;color:var(--text2)">${o.clientPhone||''}</div></td>
-              <td style="font-size:12px">${[o.tvBrand,o.tvModel,o.tvDiagonal].filter(Boolean).join(' ')||'—'}</td>
+              <td style="font-size:12px">${[o.tvBrand,o.tvModel].filter(Boolean).join(' ')||'—'}</td>
               <td><span class="badge ${STATUS_CLASS[o.status]}">${STATUS_ICON[o.status]} ${STATUS_LABEL[o.status]}</span></td>
               <td><span class="badge ${dl.cls||'b-new'}">${dl.label}</span></td>
               <td style="font-size:12px">${o.masterName||'<span style="color:var(--text2)">—</span>'}</td>
@@ -777,7 +777,7 @@ function renderOrdersTable(){
         <div style="font-size:11px;color:var(--text2)">${o.clientPhone||''}</div></td>
       <td style="font-size:12px">
         <div style="font-weight:500">${o.tvBrand||''} ${o.tvModel||''}</div>
-        <div style="color:var(--text2)">${o.tvDiagonal||''}</div></td>
+      </td>
       <td style="max-width:150px"><div style="font-size:12px;overflow:hidden;white-space:nowrap;
         text-overflow:ellipsis;max-width:140px" title="${o.problem}">${o.problem||'—'}</div></td>
       <td><span class="badge ${STATUS_CLASS[o.status]}">${STATUS_ICON[o.status]} ${STATUS_LABEL[o.status]}</span></td>
@@ -843,14 +843,7 @@ function openNewOrderModal(clientId,clientName,clientPhone){
           <label>Model</label>
           <input id="oTvModel" placeholder="UA55TU8000">
         </div>
-        <div class="form-group">
-          <label>Diagonal</label>
-          <input id="oTvDiagonal" placeholder='55"'>
-        </div>
-        <div class="form-group">
-          <label>Seriya raqam</label>
-          <input id="oTvSerial" placeholder="0X4T3C...">
-        </div>
+
       </div>
       <div class="divider"></div>
       <div class="section-title">🔧 Buyurtma tafsiloti</div>
@@ -949,8 +942,6 @@ function saveNewOrder(){
     clientPhone:document.getElementById('oClientPhone').value.trim(),
     tvBrand:document.getElementById('oTvBrand').value,
     tvModel:document.getElementById('oTvModel').value.trim(),
-    tvDiagonal:document.getElementById('oTvDiagonal').value.trim(),
-    tvSerial:document.getElementById('oTvSerial').value.trim(),
     problem,
     status:'new',
     source:document.getElementById('oSource').value,
