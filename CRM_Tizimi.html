@@ -790,33 +790,37 @@ function renderOrdersTable(){
       <td onclick="event.stopPropagation()">
         <div class="td-actions">
 
-          ${/* YAKUNLASH tugmasi — faqat done holatida */
-          o.status==='done'?`
-            <button class="btn btn-sm btn-success" 
-              onclick="openYakunlashModal(${o.id})" 
-              title="Buyurtmani yakunlash"
-              style="font-weight:700;background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none">
+          ${o.status==='done'?`
+            <button class="btn btn-sm btn-success"
+              onclick="openYakunlashModal(${o.id})"
+              style="font-weight:700;background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;padding:5px 12px">
               🏁 Yakunlash
             </button>`:
 
-          /* IN_REPAIR — ta'mirda tugmasi */
           o.status==='in_repair'?`
             <button class="btn btn-sm btn-success"
               onclick="markAsDone(${o.id})"
-              title="Ta'mir tugadi — tayyor deb belgilash"
               style="background:#dcfce7;color:#16a34a;border:1px solid #bbf7d0">
               ✔️ Tayyor
             </button>
-            <button class="btn btn-sm btn-blue" onclick="openStatusModal(${o.id})" title="Holat o'zgartirish">🔄</button>`:
+            <button class="btn btn-sm"
+              onclick="openYakunlashModal(${o.id})"
+              style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;font-weight:600;font-size:11px">
+              🏁 Yopish
+            </button>
+            <button class="btn btn-sm btn-blue" onclick="openStatusModal(${o.id})">🔄</button>`:
 
-          /* Boshqa aktiv holatlar */
           !['delivered','cancelled'].includes(o.status)?`
-            <button class="btn btn-sm btn-blue" onclick="openStatusModal(${o.id})" title="Holat o'zgartirish">🔄</button>`:
+            <button class="btn btn-sm"
+              onclick="openYakunlashModal(${o.id})"
+              style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;font-weight:600;font-size:11px;padding:5px 10px">
+              🏁 Yopish
+            </button>
+            <button class="btn btn-sm btn-blue" onclick="openStatusModal(${o.id})">🔄</button>`:
 
-          /* Yakunlangan — arxiv */
-          `<button class="btn btn-sm btn-ghost" onclick="archiveOrder(${o.id})" title="Arxivlash">📦</button>`}
+          `<button class="btn btn-sm btn-ghost" onclick="archiveOrder(${o.id})">📦</button>`}
 
-          <button class="btn btn-sm btn-ghost" onclick="openOrderDetail(${o.id})" title="Ko'rish">👁</button>
+          <button class="btn btn-sm btn-ghost" onclick="openOrderDetail(${o.id})">👁</button>
         </div>
       </td>
     </tr>`;
