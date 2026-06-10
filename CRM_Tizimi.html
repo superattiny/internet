@@ -2695,76 +2695,220 @@ function deleteReminder(id){
 }
 
 // ================================================================
-//  ARXIV SAHIFASI
+//  ARXIV SAHIFASI — 2 bo'lim + sana filter
 // ================================================================
+let archiveTab='orders';
+let archiveDateFrom='';
+let archiveDateTo='';
+
+function getWeekStart(){
+  const d=new Date(),day=d.getDay();
+  return new Date(d.setDate(d.getDate()-(day===0?6:day-1))).toISOString().slice(0,10);
+}
+
+function buildArchiveTable(orders){
+  if(!orders.length)return`<div class="empty-state"><div class="empty-icon">📦</div>
+    <div class="empty-title">Bu oraliqda yopilgan ish yo'q</div></div>`;
+  return`<table><thead><tr>
+    <th>Raqam</th><th>Mijoz</th><th>Natija</th>
+    <th>Foyda</th><th>Yo'lkira</th><th>Zapchast</th><th>Jami</th>
+    <th>To'lov</th><th>Ishchi</th><th>Sana</th>
+  </tr></thead><tbody>
+  ${orders.slice().sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt)).map(o=>`<tr>
+    <td style="font-family:monospace;font-weight:700;color:var(--purple2)">${o.num}</td>
+    <td><div style="font-weight:600;font-size:13px">${o.clientName}</div>
+      <div style="font-size:11px;color:var(--text2)">${o.clientPhone||''}</div></td>
+    <td>${o.status==='delivered'
+      ? o.qabulKutilmoqda&&!o.isPaid
+        ?`<span class="badge b-waiting" style="cursor:pointer" onclick="openQabulModal(${o.id})">⏳ Qabul kutilmoqda</span>`
+        :`<span class="badge b-done">✅ Tuzatildi</span>`
+      :`<span class="badge b-cancelled" title="${o.cancelReason||''}">❌ ${o.cancelReason?o.cancelReason.slice(0,25):'Tuzatilmadi'}</span>`}
+    </td>
+    <td class="green-text money">${(o.foyda||0)>0?fmtMoney(o.foyda):'—'}</td>
+    <td class="yellow-text money">${(o.yolkira||0)>0?fmtMoney(o.yolkira):'—'}</td>
+    <td class="blue-text money">${(o.zapchast||0)>0?fmtMoney(o.zapchast):'—'}</td>
+    <td class="money" style="font-weight:700">${fmtMoney(o.finalPrice||o.estimatedPrice||0)}</td>
+    <td>${o.isPaid?`<span class="badge b-done">✅ To'landi</span>`
+      :o.qabulKutilmoqda?`<button class="btn btn-sm btn-yellow" onclick="openQabulModal(${o.id})">💰 Qabul</button>`
+      :`<span style="color:var(--text2)">—</span>`}</td>
+    <td style="font-size:12px">${o.masterName||'—'}</td>
+    <td style="font-size:12px;color:var(--text2)">${fmtDateOnly(o.updatedAt)}</td>
+  </tr>`).join('')}
+  </tbody></table>`;
+}
+
+function filterArchiveOrders(){
+  let orders=DB.get('orders').filter(o=>['delivered','cancelled'].includes(o.status)||o.archived);
+  if(archiveDateFrom) orders=orders.filter(o=>o.updatedAt&&o.updatedAt.slice(0,10)>=archiveDateFrom);
+  if(archiveDateTo)   orders=orders.filter(o=>o.updatedAt&&o.updatedAt.slice(0,10)<=archiveDateTo);
+  const el=document.getElementById('archiveOrdersTable');
+  const cnt=document.getElementById('archiveCount');
+  if(el)el.innerHTML=buildArchiveTable(orders);
+  if(cnt)cnt.textContent=orders.length;
+}
+
+function rehireWorker(id){
+  const users=DB.get('users'),w=users.find(u=>u.id===id);
+  if(!w||!confirm(`${w.name}ni qayta ishga olmoqchimisiz?`))return;
+  w.active=true;w.fired=false;w.fireReason='';w.fireDate='';w.firedBy='';
+  DB.set('users',users);
+  toast(`✅ ${w.name} qayta ishga olindi`);
+  renderArchive();renderWorkers();
+}
+
 function renderArchive(){
-  const archived=DB.get('orders').filter(o=>['delivered','cancelled'].includes(o.status)||o.archived);
-  // "Qabul kutilmoqda" buyurtmalar
-  const qabulKutilmoqda=archived.filter(o=>o.qabulKutilmoqda&&!o.isPaid&&o.status==='delivered');
+  const allOrders=DB.get('orders').filter(o=>['delivered','cancelled'].includes(o.status)||o.archived);
+  const firedUsers=DB.get('users').filter(u=>u.fired);
+  const qabulKutilmoqda=allOrders.filter(o=>o.qabulKutilmoqda&&!o.isPaid&&o.status==='delivered');
 
   document.getElementById('page-archive').innerHTML=`
+
     ${qabulKutilmoqda.length>0?`
     <div style="display:flex;align-items:center;gap:12px;padding:12px 18px;
       background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);
-      border-radius:12px;margin-bottom:16px;cursor:pointer"
-      onclick="">
+      border-radius:12px;margin-bottom:14px">
       <div style="width:10px;height:10px;background:var(--yellow);border-radius:50%;
         animation:pulse-dot 1.5s ease infinite;flex-shrink:0"></div>
       <span style="font-weight:700;color:var(--yellow)">
         ⏳ ${qabulKutilmoqda.length} ta buyurtma to'lov qabulini kutmoqda!
       </span>
-      <div style="display:flex;gap:8px;margin-left:auto">
-        ${qabulKutilmoqda.map(o=>`
+      <div style="display:flex;gap:8px;margin-left:auto;flex-wrap:wrap">
+        ${qabulKutilmoqda.slice(0,3).map(o=>`
         <button class="btn btn-sm btn-yellow" onclick="openQabulModal(${o.id})">
-          💰 ${o.num} — Qabul qilish
+          💰 ${o.num}
         </button>`).join('')}
       </div>
     </div>`:''}
 
+    <!-- 2 ta TAB -->
+    <div style="display:flex;gap:5px;margin-bottom:16px;background:var(--card);
+      padding:4px;border-radius:12px;width:fit-content;border:1px solid var(--border)">
+      <button onclick="archiveTab='orders';renderArchive()"
+        style="padding:8px 20px;border-radius:9px;border:none;cursor:pointer;
+        font-weight:700;font-size:13px;transition:all .15s;
+        background:${archiveTab==='orders'?'var(--purple)':'transparent'};
+        color:${archiveTab==='orders'?'white':'var(--text2)'}">
+        📦 Ishlar tarixi
+      </button>
+      <button onclick="archiveTab='workers';renderArchive()"
+        style="padding:8px 20px;border-radius:9px;border:none;cursor:pointer;
+        font-weight:700;font-size:13px;transition:all .15s;
+        background:${archiveTab==='workers'?'var(--red)':'transparent'};
+        color:${archiveTab==='workers'?'white':'var(--text2)'}">
+        🚫 Haydangan ishchilar
+        ${firedUsers.length>0?`<span style="background:rgba(255,255,255,.3);
+          border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px">
+          ${firedUsers.length}</span>`:''}
+      </button>
+    </div>
+
+    <!-- TAB 1: ISHLAR TARIXI -->
+    ${archiveTab==='orders'?`
     <div class="card">
-      <div class="card-header" style="padding-bottom:12px">
-        <div class="card-title">📦 Arxiv</div>
-        <span style="font-size:13px;color:var(--text2)">Jami: <b>${archived.length}</b> ta</span>
+      <div class="card-header">
+        <div class="card-title">📦 Yopilgan ishlar tarixi</div>
+        <span style="font-size:13px;color:var(--text2)">
+          Jami: <b id="archiveCount">${allOrders.length}</b> ta
+        </span>
       </div>
+
+      <!-- SANA FILTER -->
+      <div style="display:flex;align-items:center;gap:10px;padding:12px 20px;
+        border-bottom:1px solid var(--border);flex-wrap:wrap">
+        <span style="font-size:13px;color:var(--text2);font-weight:600">📅 Sana:</span>
+        <input type="date" id="archiveDateFrom" value="${archiveDateFrom}"
+          onchange="archiveDateFrom=this.value;filterArchiveOrders()"
+          style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;
+          background:var(--card2);color:var(--text);font-size:13px;outline:none">
+        <span style="color:var(--text2)">—</span>
+        <input type="date" id="archiveDateTo" value="${archiveDateTo}"
+          onchange="archiveDateTo=this.value;filterArchiveOrders()"
+          style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;
+          background:var(--card2);color:var(--text);font-size:13px;outline:none">
+        <button onclick="archiveDateFrom='';archiveDateTo='';
+          document.getElementById('archiveDateFrom').value='';
+          document.getElementById('archiveDateTo').value='';
+          filterArchiveOrders()" class="btn btn-sm btn-ghost">✕</button>
+
+        <!-- Tez tugmalar -->
+        <div style="display:flex;gap:5px;flex-wrap:wrap">
+          <button class="btn btn-sm btn-ghost"
+            onclick="let d=new Date();archiveDateFrom=d.getFullYear()+'-01-01';
+            archiveDateTo='${today()}';
+            document.getElementById('archiveDateFrom').value=archiveDateFrom;
+            document.getElementById('archiveDateTo').value=archiveDateTo;
+            filterArchiveOrders()">Bu yil</button>
+          <button class="btn btn-sm btn-ghost"
+            onclick="archiveDateFrom='${today().slice(0,7)+'-01'}';
+            archiveDateTo='${today()}';
+            document.getElementById('archiveDateFrom').value=archiveDateFrom;
+            document.getElementById('archiveDateTo').value=archiveDateTo;
+            filterArchiveOrders()">Bu oy</button>
+          <button class="btn btn-sm btn-ghost"
+            onclick="archiveDateFrom=getWeekStart();
+            archiveDateTo='${today()}';
+            document.getElementById('archiveDateFrom').value=archiveDateFrom;
+            document.getElementById('archiveDateTo').value=archiveDateTo;
+            filterArchiveOrders()">Bu hafta</button>
+        </div>
+      </div>
+
+      <div id="archiveOrdersTable" class="table-wrap" style="border:none;border-radius:0">
+        ${buildArchiveTable(allOrders)}
+      </div>
+    </div>`:''}
+
+    <!-- TAB 2: HAYDANGAN ISHCHILAR -->
+    ${archiveTab==='workers'?`
+    <div class="card">
+      <div class="card-header" style="padding-bottom:14px">
+        <div class="card-title" style="color:var(--red)">🚫 Ishdan haydangan ishchilar</div>
+        <span style="font-size:13px;color:var(--text2)">${firedUsers.length} ta</span>
+      </div>
+      ${firedUsers.length===0?`<div class="empty-state">
+        <div class="empty-icon">✅</div>
+        <div class="empty-title">Haydangan ishchilar yo'q</div>
+        <div class="empty-text">Barcha ishchilar faol</div>
+      </div>`:`
       <div class="table-wrap" style="border:none;border-radius:0">
-      ${archived.length===0?`<div class="empty-state">
-        <div class="empty-icon">📦</div><div class="empty-title">Arxiv bo'sh</div>
-        </div>`:`
       <table><thead><tr>
-        <th>Raqam</th><th>Mijoz</th><th>Natija</th>
-        <th>Foyda</th><th>Yo'lkira</th><th>Zapchast</th><th>Jami</th>
-        <th>To'lov</th><th>Usta</th><th>Sana</th>
+        <th>Ishchi</th><th>Lavozim</th><th>Telefon</th>
+        <th>Haydash sababi</th><th>Kim haydi</th><th>Sana</th>
+        <th>Balansi</th><th>Qarzi</th><th>Bajargan ishlari</th><th>Amal</th>
       </tr></thead><tbody>
-      ${archived.sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt)).map(o=>`<tr>
-        <td style="font-family:monospace;font-weight:700;color:var(--purple2)">${o.num}</td>
-        <td>
-          <div style="font-weight:600">${o.clientName}</div>
-          <div style="font-size:11px;color:var(--text2)">${o.clientPhone||''}</div>
-        </td>
-        <td>
-          ${o.status==='delivered'
-            ? o.qabulKutilmoqda&&!o.isPaid
-              ? `<span class="badge b-waiting" style="cursor:pointer" onclick="openQabulModal(${o.id})">⏳ Qabul kutilmoqda</span>`
-              : `<span class="badge b-done">✅ Tuzatildi</span>`
-            : `<span class="badge b-cancelled" title="${o.cancelReason||''}">❌ Tuzatilmadi${o.cancelReason?': '+o.cancelReason.slice(0,20)+'...':''}</span>`}
-        </td>
-        <td class="green-text money">${o.foyda>0?fmtMoney(o.foyda):'—'}</td>
-        <td class="yellow-text money">${o.yolkira>0?fmtMoney(o.yolkira):'—'}</td>
-        <td class="blue-text money">${o.zapchast>0?fmtMoney(o.zapchast):'—'}</td>
-        <td class="money" style="font-weight:700">${fmtMoney(o.finalPrice||o.estimatedPrice)}</td>
-        <td>
-          ${o.isPaid
-            ? `<span class="badge b-done">✅ To'landi</span>`
-            : o.qabulKutilmoqda
-              ? `<button class="btn btn-sm btn-yellow" onclick="openQabulModal(${o.id})">💰 Qabul</button>`
-              : `<span class="badge b-cancelled">—</span>`}
-        </td>
-        <td style="font-size:12px">${o.masterName||'—'}</td>
-        <td style="font-size:12px;color:var(--text2)">${fmtDateOnly(o.updatedAt)}</td>
-      </tr>`).join('')}
+      ${firedUsers.map(w=>{
+        const done=DB.get('orders').filter(o=>
+          (o.masterIds&&o.masterIds.includes(w.id)||o.masterId===w.id)
+          &&o.status==='delivered'
+        ).length;
+        return`<tr>
+          <td>
+            <div style="display:flex;align-items:center;gap:9px">
+              <div style="width:34px;height:34px;border-radius:50%;background:#374151;
+                display:flex;align-items:center;justify-content:center;
+                font-size:14px;font-weight:700;color:var(--text2)">${w.name[0]}</div>
+              <div>
+                <div style="font-weight:600;font-size:13px">${w.name}</div>
+                <div style="font-size:11px;color:var(--text2)">@${w.username}</div>
+              </div>
+            </div>
+          </td>
+          <td><span class="badge ${w.role==='master'?'b-master':'b-operator'}">
+            ${w.role==='master'?'👷 Usta':'🖥 Operator'}</span></td>
+          <td style="font-size:12px;font-family:monospace">${w.phone||'—'}</td>
+          <td style="font-size:12px;max-width:180px;color:var(--red)">${w.fireReason||'—'}</td>
+          <td style="font-size:12px;color:var(--text2)">${w.firedBy||'—'}</td>
+          <td style="font-size:12px;color:var(--text2)">${fmtDateOnly(w.fireDate)||'—'}</td>
+          <td class="money ${(w.balance||0)>0?'green-text':''}">${fmtMoney(w.balance||0)}</td>
+          <td class="money ${(w.debt||0)>0?'red-text':''}">${(w.debt||0)>0?fmtMoney(w.debt):'—'}</td>
+          <td style="text-align:center;font-weight:800;color:var(--blue);font-size:15px">${done}</td>
+          <td><button class="btn btn-sm btn-success" onclick="rehireWorker(${w.id})">
+            🔓 Qayta olish</button></td>
+        </tr>`;
+      }).join('')}
       </tbody></table>`}
-      </div>
-    </div>`;
+    </div>`:''}
+  `;
 }
 
 // ================================================================
