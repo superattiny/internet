@@ -1,0 +1,2042 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TV Ta'mirlash CRM</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0f0f1a;--sidebar:#16162a;--card:#1e1e35;--card2:#252540;
+  --purple:#7c3aed;--purple2:#9d5cf6;--green:#10b981;--red:#ef4444;
+  --yellow:#f59e0b;--blue:#3b82f6;--cyan:#06b6d4;
+  --text:#e2e8f0;--text2:#94a3b8;--border:#2d2d50;
+}
+body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+/* SCROLLBAR */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+/* LOGIN */
+#loginPage{display:flex;align-items:center;justify-content:center;min-height:100vh;
+  background:radial-gradient(ellipse at 50% 50%,#1a0a3a 0%,var(--bg) 70%)}
+.login-box{background:var(--card);border:1px solid var(--border);border-radius:20px;
+  padding:48px 40px;width:100%;max-width:420px;text-align:center;
+  box-shadow:0 25px 60px rgba(124,58,237,0.2)}
+.login-logo{width:60px;height:60px;background:linear-gradient(135deg,var(--purple),var(--purple2));
+  border-radius:16px;display:flex;align-items:center;justify-content:center;
+  font-size:28px;margin:0 auto 20px;box-shadow:0 8px 24px rgba(124,58,237,0.4)}
+.login-box h1{font-size:26px;font-weight:700;margin-bottom:6px}
+.login-box p{color:var(--text2);font-size:14px;margin-bottom:32px}
+.form-group{margin-bottom:16px;text-align:left}
+.form-group label{display:block;font-size:13px;color:var(--text2);margin-bottom:6px;font-weight:500}
+.form-group input,.form-group select,.form-group textarea{
+  width:100%;padding:11px 14px;background:var(--card2);border:1.5px solid var(--border);
+  border-radius:10px;color:var(--text);font-size:14px;font-family:inherit;outline:none;
+  transition:border-color .2s}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--purple)}
+.form-group textarea{resize:vertical;min-height:80px}
+.hint{text-align:center;margin-top:16px;font-size:13px;color:var(--text2)}
+.hint span{color:var(--purple2);font-weight:600}
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:10px;
+  font-size:13.5px;font-weight:600;cursor:pointer;border:none;transition:all .2s;white-space:nowrap}
+.btn-primary{background:linear-gradient(135deg,var(--purple),var(--purple2));color:#fff;width:100%;
+  justify-content:center;padding:13px;font-size:15px}
+.btn-primary:hover{opacity:.9;transform:translateY(-1px)}
+.btn-success{background:rgba(16,185,129,.15);color:var(--green);border:1px solid rgba(16,185,129,.3)}
+.btn-success:hover{background:rgba(16,185,129,.25)}
+.btn-danger{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3)}
+.btn-danger:hover{background:rgba(239,68,68,.25)}
+.btn-blue{background:rgba(59,130,246,.15);color:var(--blue);border:1px solid rgba(59,130,246,.3)}
+.btn-blue:hover{background:rgba(59,130,246,.25)}
+.btn-yellow{background:rgba(245,158,11,.15);color:var(--yellow);border:1px solid rgba(245,158,11,.3)}
+.btn-yellow:hover{background:rgba(245,158,11,.25)}
+.btn-purple{background:rgba(124,58,237,.2);color:var(--purple2);border:1px solid rgba(124,58,237,.4)}
+.btn-purple:hover{background:rgba(124,58,237,.35)}
+.btn-sm{padding:6px 12px;font-size:12px;border-radius:7px}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--card2);color:var(--text)}
+/* MAIN LAYOUT */
+#app{display:none;min-height:100vh}
+.sidebar{width:220px;background:var(--sidebar);border-right:1px solid var(--border);
+  position:fixed;top:0;left:0;height:100vh;display:flex;flex-direction:column;z-index:10}
+.sidebar-logo{padding:20px 16px 16px;border-bottom:1px solid var(--border)}
+.sidebar-logo-inner{display:flex;align-items:center;gap:10px}
+.s-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--purple),var(--purple2));
+  border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.s-title{font-size:14px;font-weight:700;color:var(--text)}
+.s-sub{font-size:11px;color:var(--text2)}
+.sidebar-nav{flex:1;padding:12px 8px;overflow-y:auto}
+.nav-section{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+  color:#475569;padding:10px 10px 4px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:9px;
+  cursor:pointer;font-size:13.5px;font-weight:500;color:var(--text2);
+  transition:all .15s;margin-bottom:2px;border:1.5px solid transparent}
+.nav-item:hover{background:var(--card);color:var(--text)}
+.nav-item.active{background:rgba(124,58,237,.2);color:var(--purple2);border-color:rgba(124,58,237,.4)}
+.nav-item .ni{font-size:16px;width:20px;text-align:center;flex-shrink:0}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;
+  font-weight:700;padding:1px 6px;border-radius:10px;min-width:18px;text-align:center}
+.sidebar-user{padding:12px 8px;border-top:1px solid var(--border)}
+.user-box{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:9px;
+  cursor:pointer;transition:background .15s}
+.user-box:hover{background:var(--card2)}
+.user-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--purple2));
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+.user-name{font-size:13px;font-weight:600;color:var(--text)}
+.user-role{font-size:11px;color:var(--text2)}
+/* MAIN CONTENT */
+.main-content{margin-left:220px;min-height:100vh;display:flex;flex-direction:column}
+.topbar{height:58px;background:var(--sidebar);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;padding:0 24px;
+  position:sticky;top:0;z-index:5}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.topbar-title{font-size:17px;font-weight:700}
+.topbar-right{display:flex;align-items:center;gap:8px}
+.page-body{padding:24px;flex:1}
+/* CARDS */
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px}
+.card-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 0}
+.card-title{font-size:14px;font-weight:700}
+.card-body{padding:16px 20px 20px}
+/* STAT CARDS */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:20px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:14px;
+  padding:18px 16px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:12px}
+.stat-card:hover{border-color:var(--purple);transform:translateY(-2px);
+  box-shadow:0 8px 24px rgba(124,58,237,.15)}
+.stat-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;
+  justify-content:center;font-size:20px;flex-shrink:0}
+.si-purple{background:rgba(124,58,237,.2)}
+.si-green{background:rgba(16,185,129,.2)}
+.si-yellow{background:rgba(245,158,11,.2)}
+.si-red{background:rgba(239,68,68,.2)}
+.si-blue{background:rgba(59,130,246,.2)}
+.si-cyan{background:rgba(6,182,212,.2)}
+.stat-label{font-size:11.5px;color:var(--text2);font-weight:500;margin-bottom:4px}
+.stat-value{font-size:24px;font-weight:800;line-height:1}
+.stat-sub{font-size:11px;color:var(--text2);margin-top:3px}
+/* TABLE */
+.table-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+thead tr{background:var(--card2);border-bottom:1px solid var(--border)}
+th{padding:10px 14px;text-align:left;font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.05em;color:var(--text2);white-space:nowrap}
+td{padding:12px 14px;border-bottom:1px solid rgba(45,45,80,.5);vertical-align:middle}
+tbody tr:hover{background:rgba(255,255,255,.02)}
+tbody tr:last-child td{border-bottom:none}
+.td-actions{display:flex;align-items:center;gap:6px}
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;
+  border-radius:20px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.b-new{background:rgba(6,182,212,.15);color:var(--cyan);border:1px solid rgba(6,182,212,.3)}
+.b-progress{background:rgba(59,130,246,.15);color:var(--blue);border:1px solid rgba(59,130,246,.3)}
+.b-waiting{background:rgba(245,158,11,.15);color:var(--yellow);border:1px solid rgba(245,158,11,.3)}
+.b-done{background:rgba(16,185,129,.15);color:var(--green);border:1px solid rgba(16,185,129,.3)}
+.b-cancelled{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3)}
+.b-overdue{background:rgba(239,68,68,.2);color:#fca5a5;border:1px solid rgba(239,68,68,.5);
+  animation:pulse-red 2s ease infinite}
+@keyframes pulse-red{0%,100%{box-shadow:none}50%{box-shadow:0 0 8px rgba(239,68,68,.4)}}
+.b-admin{background:rgba(124,58,237,.15);color:var(--purple2);border:1px solid rgba(124,58,237,.3)}
+.b-operator{background:rgba(59,130,246,.15);color:var(--blue);border:1px solid rgba(59,130,246,.3)}
+.b-master{background:rgba(245,158,11,.15);color:var(--yellow);border:1px solid rgba(245,158,11,.3)}
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);
+  z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .15s ease}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:18px;
+  width:100%;max-height:90vh;display:flex;flex-direction:column;animation:slideUp .2s ease}
+@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-sm{max-width:420px}.modal-md{max-width:560px}.modal-lg{max-width:720px}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 0}
+.modal-title{font-size:16px;font-weight:700}
+.modal-close{width:30px;height:30px;border-radius:8px;border:none;background:var(--card2);
+  color:var(--text2);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.modal-close:hover{background:var(--border);color:var(--text)}
+.modal-body{flex:1;overflow-y:auto;padding:18px 24px}
+.modal-footer{display:flex;justify-content:flex-end;gap:10px;padding:14px 24px 20px;
+  border-top:1px solid var(--border)}
+/* GRID */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
+.col-span-2{grid-column:1/-1}
+/* MISC */
+.empty-state{text-align:center;padding:60px 20px;color:var(--text2)}
+.empty-icon{font-size:48px;margin-bottom:12px;opacity:.6}
+.empty-title{font-size:15px;font-weight:600;color:#64748b;margin-bottom:6px}
+.section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+  color:#475569;margin-bottom:12px;margin-top:4px}
+.divider{height:1px;background:var(--border);margin:16px 0}
+.alert-banner{display:flex;align-items:center;gap:10px;padding:12px 16px;
+  background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:10px;margin-bottom:16px;cursor:pointer}
+.alert-pulse{width:10px;height:10px;background:var(--red);border-radius:50%;
+  animation:pulse-dot 1.5s ease infinite;flex-shrink:0}
+@keyframes pulse-dot{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.4);opacity:.7}}
+.info-row{display:flex;gap:8px;margin-bottom:10px;font-size:13px}
+.info-label{color:var(--text2);min-width:130px;flex-shrink:0}
+.info-value{font-weight:500}
+.tabs{display:flex;gap:4px;margin-bottom:16px;background:var(--card2);
+  padding:4px;border-radius:10px;width:fit-content}
+.tab{padding:7px 16px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;
+  color:var(--text2);transition:all .15s}
+.tab.active{background:var(--purple);color:#fff}
+.search-box{display:flex;align-items:center;gap:8px;background:var(--card2);
+  border:1.5px solid var(--border);border-radius:10px;padding:8px 12px;max-width:280px}
+.search-box input{background:none;border:none;outline:none;color:var(--text);font-size:13.5px;width:100%}
+.search-box input::placeholder{color:var(--text2)}
+.tag{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;
+  border-radius:6px;font-size:11px;background:var(--card2);color:var(--text2)}
+.money{font-family:'Courier New',monospace;font-weight:700}
+.green-text{color:var(--green)}.red-text{color:var(--red)}.yellow-text{color:var(--yellow)}
+.blue-text{color:var(--blue)}.purple-text{color:var(--purple2)}
+.toast-container{position:fixed;bottom:24px;right:24px;z-index:999;display:flex;flex-direction:column;gap:8px}
+.toast{padding:12px 18px;border-radius:10px;font-size:13.5px;font-weight:600;
+  box-shadow:0 8px 24px rgba(0,0,0,.3);animation:slideUp .2s ease;display:flex;align-items:center;gap:8px}
+.toast-success{background:#064e3b;color:#6ee7b7;border:1px solid #065f46}
+.toast-error{background:#7f1d1d;color:#fca5a5;border:1px solid #991b1b}
+.toast-info{background:#1e3a5f;color:#93c5fd;border:1px solid #1d4ed8}
+</style>
+</head>
+<body>
+
+
+<!-- LOGIN PAGE -->
+<div id="loginPage">
+  <div class="login-box">
+    <div class="login-logo">📺</div>
+    <h1>TV CRM Tizimi</h1>
+    <p>Ustaxona boshqaruv tizimiga xush kelibsiz</p>
+    <div id="loginError" style="display:none;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);
+      border-radius:10px;padding:10px 14px;font-size:13px;color:#fca5a5;margin-bottom:14px"></div>
+    <div class="form-group">
+      <label>Foydalanuvchi nomi</label>
+      <input type="text" id="loginUsername" placeholder="admin" value="admin">
+    </div>
+    <div class="form-group">
+      <label>Parol</label>
+      <input type="password" id="loginPassword" placeholder="••••••" value="admin123"
+        onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn btn-primary" onclick="doLogin()" style="margin-top:8px">Kirish →</button>
+    <div class="hint">Standart: <span>admin / admin123</span></div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-inner">
+        <div class="s-icon">📺</div>
+        <div><div class="s-title">TV CRM</div><div class="s-sub">Boshqaruv tizimi</div></div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Asosiy</div>
+      <div class="nav-item active" onclick="showPage('dashboard')">
+        <span class="ni">🏠</span><span>Bosh Sahifa</span>
+      </div>
+      <div class="nav-item" onclick="showPage('orders')">
+        <span class="ni">📋</span><span>Buyurtmalar</span>
+        <span class="nav-badge" id="navOrderBadge" style="display:none">0</span>
+      </div>
+      <div class="nav-item" onclick="showPage('clients')">
+        <span class="ni">👥</span><span>Mijozlar</span>
+      </div>
+      <div class="nav-section">Moliya</div>
+      <div class="nav-item" onclick="showPage('finance')">
+        <span class="ni">💰</span><span>Balans</span>
+      </div>
+      <div class="nav-item" onclick="showPage('workers')">
+        <span class="ni">👨‍🔧</span><span>Ishchilar</span>
+      </div>
+      <div class="nav-section">Boshqa</div>
+      <div class="nav-item" onclick="showPage('chats')">
+        <span class="ni">📞</span><span>Suhbatlar</span>
+      </div>
+      <div class="nav-item" onclick="showPage('reminders')">
+        <span class="ni">🔔</span><span>Eslatmalar</span>
+      </div>
+      <div class="nav-item" onclick="showPage('archive')">
+        <span class="ni">📦</span><span>Arxiv</span>
+      </div>
+      <div class="nav-section">Admin</div>
+      <div class="nav-item" onclick="showPage('users')">
+        <span class="ni">⚙️</span><span>Foydalanuvchilar</span>
+      </div>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-box" onclick="doLogout()">
+        <div class="user-avatar" id="sidebarAvatar">A</div>
+        <div>
+          <div class="user-name" id="sidebarName">Admin</div>
+          <div class="user-role">Chiqish uchun bosing</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left">
+        <span style="font-size:20px" id="topbarIcon">🏠</span>
+        <span class="topbar-title" id="topbarTitle">Bosh Sahifa</span>
+        <span id="overdueAlert" style="display:none">
+          <span class="badge b-overdue" style="cursor:pointer" onclick="showPage('orders','overdue')">
+            ❌ <span id="overdueCount">0</span> ta muddati o'tgan
+          </span>
+        </span>
+      </div>
+      <div class="topbar-right">
+        <div id="topbarBalance" style="padding:6px 14px;background:rgba(16,185,129,.1);
+          border:1px solid rgba(16,185,129,.3);border-radius:20px;font-size:13px;
+          font-weight:700;color:var(--green);cursor:pointer" onclick="showPage('finance')">
+          💰 <span id="topbarBalanceVal">0</span>
+        </div>
+        <button class="btn btn-sm btn-ghost" onclick="refreshAll()" title="Yangilash">🔄</button>
+      </div>
+    </div>
+
+    <!-- PAGES -->
+    <div class="page-body">
+      <div id="page-dashboard"></div>
+      <div id="page-orders" style="display:none"></div>
+      <div id="page-clients" style="display:none"></div>
+      <div id="page-finance" style="display:none"></div>
+      <div id="page-workers" style="display:none"></div>
+      <div id="page-chats" style="display:none"></div>
+      <div id="page-reminders" style="display:none"></div>
+      <div id="page-archive" style="display:none"></div>
+      <div id="page-users" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ================================================================
+//  TV CRM — localStorage ma'lumotlar bazasi
+// ================================================================
+
+// ---------- DB ----------
+const DB = {
+  get(key){ try{return JSON.parse(localStorage.getItem('tvcrm_'+key))||[]}catch{return[]} },
+  set(key,val){ localStorage.setItem('tvcrm_'+key,JSON.stringify(val)) },
+  getObj(key,def={}){ try{return JSON.parse(localStorage.getItem('tvcrm_'+key))||def}catch{return def} },
+  setObj(key,val){ localStorage.setItem('tvcrm_'+key,JSON.stringify(val)) }
+};
+
+// ---------- BOSHLANG'ICH MA'LUMOTLAR ----------
+function initData(){
+  if(DB.get('users').length===0){
+    DB.set('users',[
+      {id:1,name:'Administrator',username:'admin',password:'admin123',role:'admin',
+       balance:0,commission:0,active:true,phone:'+998901234567'},
+      {id:2,name:'Olim Toshmatov',username:'olim',password:'12345',role:'master',
+       balance:250000,commission:30,active:true,phone:'+998901111111'},
+      {id:3,name:'Sarvar Operator',username:'sarvar',password:'12345',role:'operator',
+       balance:0,commission:0,active:true,phone:'+998902222222'}
+    ]);
+  }
+  if(DB.get('clients').length===0){
+    DB.set('clients',[
+      {id:1,name:'Sohib Karimov',phone:'+998901234567',address:'Toshkent, Chilonzor',
+       notes:'Doimiy mijoz',created:today(),totalOrders:1,totalSpent:0},
+      {id:2,name:'Maftuna Yusupova',phone:'+998909876543',address:'Toshkent, Yunusobod',
+       notes:'',created:today(),totalOrders:0,totalSpent:0}
+    ]);
+  }
+  if(DB.get('orders').length===0){
+    DB.set('orders',[
+      {id:1,num:'TV-2025-0001',clientId:1,clientName:'Sohib Karimov',clientPhone:'+998901234567',
+       tvBrand:'Samsung',tvModel:'UA55TU8000',tvDiagonal:'55"',
+       problem:'Ekran yonmayapti, ovoz bor',status:'new',source:'walk_in',
+       masterId:2,masterName:'Olim Toshmatov',operatorId:1,
+       estimatedPrice:150000,finalPrice:0,partsCost:0,isPaid:false,payMethod:'',
+       deadline:addDays(2),createdAt:today(),updatedAt:today(),
+       diagnosis:'',workDone:'',cancelReason:'',history:[
+         {status:'new',comment:'Zakaz ochildi',by:'Administrator',date:today()}
+       ]}
+    ]);
+  }
+  if(!DB.getObj('finance').balance){
+    DB.setObj('finance',{balance:1000000,totalIncome:1000000,totalExpense:342000});
+  }
+  if(!DB.getObj('settings').shopName){
+    DB.setObj('settings',{shopName:"TV Ta'mirlash Ustaxonasi",phone:'+998901234567',
+      address:'Toshkent shahar',orderCounter:1});
+  }
+  if(DB.get('transactions').length===0){
+    DB.set('transactions',[
+      {id:1,type:'income',amount:1000000,desc:"Boshlang'ich balans",date:today(),orderId:null}
+    ]);
+  }
+  if(DB.get('reminders').length===0){
+    DB.set('reminders',[
+      {id:1,text:'Samsung TV ekranini tekshirish',date:addDays(1),done:false,priority:'high'}
+    ]);
+  }
+}
+
+// ---------- YORDAMCHI ----------
+function today(){ return new Date().toISOString().slice(0,10) }
+function now(){ return new Date().toLocaleString('uz-UZ') }
+function addDays(n){
+  const d=new Date(); d.setDate(d.getDate()+n);
+  return d.toISOString().slice(0,16);
+}
+function fmtDate(s){ if(!s)return'—'; return new Date(s).toLocaleString('uz-UZ',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) }
+function fmtDateOnly(s){ if(!s)return'—'; return new Date(s).toLocaleDateString('uz-UZ') }
+function fmtMoney(n){ if(!n&&n!==0)return'—'; return Number(n).toLocaleString('uz-UZ')+" so'm" }
+function nextId(arr){ return arr.length?Math.max(...arr.map(x=>x.id))+1:1 }
+function getDeadlineInfo(deadline){
+  if(!deadline)return{label:'—',cls:'',overdue:false};
+  const diff=(new Date(deadline)-new Date())/3600000;
+  if(diff<0)return{label:`${Math.abs(diff).toFixed(0)}s o'tdi`,cls:'b-overdue',overdue:true};
+  if(diff<2)return{label:`${Math.round(diff*60)}daq`,cls:'b-overdue',overdue:false};
+  if(diff<24)return{label:`${diff.toFixed(0)}soat`,cls:'b-waiting',overdue:false};
+  return{label:`${(diff/24).toFixed(0)}kun`,cls:'b-done',overdue:false};
+}
+const STATUS_LABEL={new:'Yangi',accepted:'Qabul',diagnosing:'Diagnostika',
+  waiting:'Kutmoqda',in_repair:'Ta\'mirda',done:'Tayyor',delivered:'Topshirildi',cancelled:'Bekor'};
+const STATUS_CLASS={new:'b-new',accepted:'b-progress',diagnosing:'b-progress',
+  waiting:'b-waiting',in_repair:'b-progress',done:'b-done',delivered:'b-done',cancelled:'b-cancelled'};
+const STATUS_ICON={new:'🆕',accepted:'✅',diagnosing:'🔍',waiting:'⏳',
+  in_repair:'🔧',done:'✔️',delivered:'🎉',cancelled:'❌'};
+const NEXT_STATUS={
+  new:['accepted','cancelled'],
+  accepted:['diagnosing','in_repair','cancelled'],
+  diagnosing:['waiting','in_repair','cancelled'],
+  waiting:['in_repair','cancelled'],
+  in_repair:['done','waiting','cancelled'],
+  done:['delivered','cancelled'],
+  delivered:[],cancelled:[]
+};
+
+// ---------- TOAST ----------
+function toast(msg,type='success'){
+  const c=document.getElementById('toastContainer');
+  const t=document.createElement('div');
+  t.className=`toast toast-${type}`;
+  t.innerHTML=`<span>${type==='success'?'✅':type==='error'?'❌':'ℹ️'}</span><span>${msg}</span>`;
+  c.appendChild(t);
+  setTimeout(()=>t.remove(),3500);
+}
+
+// ---------- AUTH ----------
+let currentUser=null;
+function doLogin(){
+  const u=document.getElementById('loginUsername').value.trim();
+  const p=document.getElementById('loginPassword').value;
+  const users=DB.get('users');
+  const user=users.find(x=>x.username===u&&x.password===p&&x.active);
+  if(!user){
+    const el=document.getElementById('loginError');
+    el.style.display='block';
+    el.textContent='Username yoki parol noto\'g\'ri';
+    return;
+  }
+  currentUser=user;
+  sessionStorage.setItem('tvcrm_user',JSON.stringify(user));
+  document.getElementById('loginPage').style.display='none';
+  document.getElementById('app').style.display='flex';
+  document.getElementById('sidebarName').textContent=user.name;
+  document.getElementById('sidebarAvatar').textContent=user.name[0];
+  showPage('dashboard');
+  refreshAll();
+  toast(`Xush kelibsiz, ${user.name}!`);
+}
+function doLogout(){
+  if(!confirm('Tizimdan chiqmoqchimisiz?'))return;
+  currentUser=null;
+  sessionStorage.removeItem('tvcrm_user');
+  document.getElementById('app').style.display='none';
+  document.getElementById('loginPage').style.display='flex';
+  toast('Tizimdan chiqildi','info');
+}
+function checkSession(){
+  const s=sessionStorage.getItem('tvcrm_user');
+  if(s){currentUser=JSON.parse(s);doLogin();}
+}
+
+// ---------- NAVIGATION ----------
+let currentPage='dashboard';
+const PAGE_TITLES={
+  dashboard:{title:'Bosh Sahifa',icon:'🏠'},
+  orders:{title:'Buyurtmalar',icon:'📋'},
+  clients:{title:'Mijozlar',icon:'👥'},
+  finance:{title:'Balans',icon:'💰'},
+  workers:{title:'Ishchilar',icon:'👨‍🔧'},
+  chats:{title:'Suhbatlar',icon:'📞'},
+  reminders:{title:'Eslatmalar',icon:'🔔'},
+  archive:{title:'Arxiv',icon:'📦'},
+  users:{title:'Foydalanuvchilar',icon:'⚙️'}
+};
+function showPage(name,extra){
+  document.querySelectorAll('#page-'+currentPage).forEach(el=>el.style.display='none');
+  currentPage=name;
+  document.querySelectorAll('[id^="page-"]').forEach(el=>el.style.display='none');
+  const page=document.getElementById('page-'+name);
+  if(page)page.style.display='block';
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(el=>{
+    if(el.getAttribute('onclick')&&el.getAttribute('onclick').includes(`'${name}'`))
+      el.classList.add('active');
+  });
+  const info=PAGE_TITLES[name]||{title:name,icon:'📄'};
+  document.getElementById('topbarTitle').textContent=info.title;
+  document.getElementById('topbarIcon').textContent=info.icon;
+  renderPage(name,extra);
+}
+function renderPage(name,extra){
+  if(name==='dashboard')renderDashboard();
+  else if(name==='orders')renderOrders(extra);
+  else if(name==='clients')renderClients();
+  else if(name==='finance')renderFinance();
+  else if(name==='workers')renderWorkers();
+  else if(name==='chats')renderChats();
+  else if(name==='reminders')renderReminders();
+  else if(name==='archive')renderArchive();
+  else if(name==='users')renderUsers();
+}
+function refreshAll(){
+  updateTopbarBalance();
+  updateOverdueAlert();
+  renderPage(currentPage);
+}
+function updateTopbarBalance(){
+  const fin=DB.getObj('finance');
+  document.getElementById('topbarBalanceVal').textContent=fmtMoney(fin.balance||0);
+}
+function updateOverdueAlert(){
+  const orders=DB.get('orders').filter(o=>!['delivered','cancelled'].includes(o.status));
+  const overdue=orders.filter(o=>o.deadline&&new Date(o.deadline)<new Date());
+  const el=document.getElementById('overdueAlert');
+  const badge=document.getElementById('navOrderBadge');
+  if(overdue.length>0){
+    el.style.display='inline';
+    document.getElementById('overdueCount').textContent=overdue.length;
+    badge.style.display='inline';
+    badge.textContent=overdue.length;
+  } else {
+    el.style.display='none';
+    badge.style.display='none';
+  }
+}
+</script>
+
+
+<script>
+// ================================================================
+//  DASHBOARD
+// ================================================================
+function renderDashboard(){
+  const orders=DB.get('orders');
+  const clients=DB.get('clients');
+  const fin=DB.getObj('finance');
+  const active=orders.filter(o=>!['delivered','cancelled'].includes(o.status));
+  const overdue=active.filter(o=>o.deadline&&new Date(o.deadline)<new Date());
+  const todayStr=today();
+  const todayDelivered=orders.filter(o=>o.status==='delivered'&&o.updatedAt&&o.updatedAt.slice(0,10)===todayStr);
+  const todayRevenue=todayDelivered.reduce((s,o)=>s+(o.finalPrice||0),0);
+
+  const statusCounts={};
+  orders.forEach(o=>{ statusCounts[o.status]=(statusCounts[o.status]||0)+1; });
+
+  const recent=orders.filter(o=>!['delivered','cancelled'].includes(o.status))
+    .sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,8);
+
+  const reminders=DB.get('reminders').filter(r=>!r.done).slice(0,3);
+
+  document.getElementById('page-dashboard').innerHTML=`
+    ${overdue.length>0?`
+    <div class="alert-banner" onclick="showPage('orders','overdue')">
+      <div class="alert-pulse"></div>
+      <span style="font-weight:700;color:#fca5a5">❌ ${overdue.length} ta buyurtmaning muddati o'tib ketdi!</span>
+      <span style="color:var(--text2);font-size:13px;margin-left:8px">Ko'rish uchun bosing →</span>
+    </div>`:''}
+
+    <div class="stats-grid">
+      <div class="stat-card" onclick="showPage('clients')">
+        <div class="stat-icon si-purple">👥</div>
+        <div><div class="stat-label">Mijozlar</div>
+          <div class="stat-value purple-text">${clients.length}</div>
+          <div class="stat-sub">Jami bazada</div></div>
+      </div>
+      <div class="stat-card" onclick="showPage('orders')">
+        <div class="stat-icon si-blue">📋</div>
+        <div><div class="stat-label">Faol buyurtmalar</div>
+          <div class="stat-value blue-text">${active.length}</div>
+          <div class="stat-sub">${statusCounts['new']||0} ta yangi</div></div>
+      </div>
+      <div class="stat-card" onclick="showPage('finance')">
+        <div class="stat-icon si-green">💰</div>
+        <div><div class="stat-label">Jami tushum</div>
+          <div class="stat-value green-text money">${(fin.totalIncome||0).toLocaleString('uz-UZ')}</div>
+          <div class="stat-sub">so'm</div></div>
+      </div>
+      <div class="stat-card" onclick="showPage('finance')">
+        <div class="stat-icon si-cyan">📈</div>
+        <div><div class="stat-label">Sof foyda</div>
+          <div class="stat-value" style="color:var(--cyan)" class="money">${((fin.totalIncome||0)-(fin.totalExpense||0)).toLocaleString('uz-UZ')}</div>
+          <div class="stat-sub">so'm</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon si-yellow">⭐</div>
+        <div><div class="stat-label">Bugun topshirildi</div>
+          <div class="stat-value yellow-text">${todayDelivered.length}</div>
+          <div class="stat-sub">${fmtMoney(todayRevenue)}</div></div>
+      </div>
+      <div class="stat-card" onclick="showPage('orders','overdue')">
+        <div class="stat-icon si-red">⚠️</div>
+        <div><div class="stat-label">Muddati o'tgan</div>
+          <div class="stat-value red-text">${overdue.length}</div>
+          <div class="stat-sub">Shoshilish kerak</div></div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 320px;gap:18px;margin-bottom:18px">
+
+      <!-- So'nggi buyurtmalar -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📋 Faol buyurtmalar</div>
+          <button class="btn btn-sm btn-purple" onclick="showPage('orders')">Barchasi →</button>
+        </div>
+        <div style="margin-top:12px">
+        ${recent.length===0?`<div class="empty-state"><div class="empty-icon">📋</div>
+          <div class="empty-title">Buyurtmalar yo'q</div></div>`:`
+        <div class="table-wrap" style="border:none;border-radius:0">
+          <table><thead><tr>
+            <th>Raqam</th><th>Mijoz</th><th>Texnika</th><th>Holat</th><th>Deadline</th><th>Ishchi</th>
+          </tr></thead><tbody>
+          ${recent.map(o=>{
+            const dl=getDeadlineInfo(o.deadline);
+            return `<tr style="cursor:pointer" onclick="openOrderDetail(${o.id})">
+              <td><span style="font-family:monospace;font-weight:700;color:var(--purple2)">${o.num}</span></td>
+              <td><div style="font-weight:600;font-size:13px">${o.clientName}</div>
+                <div style="font-size:11px;color:var(--text2)">${o.clientPhone||''}</div></td>
+              <td style="font-size:12px">${[o.tvBrand,o.tvModel,o.tvDiagonal].filter(Boolean).join(' ')||'—'}</td>
+              <td><span class="badge ${STATUS_CLASS[o.status]}">${STATUS_ICON[o.status]} ${STATUS_LABEL[o.status]}</span></td>
+              <td><span class="badge ${dl.cls||'b-new'}">${dl.label}</span></td>
+              <td style="font-size:12px">${o.masterName||'<span style="color:var(--text2)">—</span>'}</td>
+            </tr>`;
+          }).join('')}
+          </tbody></table>
+        </div>`}
+        </div>
+      </div>
+
+      <!-- O'ng panel -->
+      <div style="display:flex;flex-direction:column;gap:14px">
+
+        <!-- Holat statistikasi -->
+        <div class="card">
+          <div class="card-header"><div class="card-title">📊 Holat bo'yicha</div></div>
+          <div class="card-body" style="padding-top:12px">
+            ${['new','accepted','diagnosing','waiting','in_repair','done'].map(s=>`
+            <div onclick="showPage('orders','${s}')" style="display:flex;align-items:center;justify-content:space-between;
+              padding:7px 10px;border-radius:8px;cursor:pointer;transition:background .15s;margin-bottom:4px"
+              onmouseover="this.style.background='var(--card2)'" onmouseout="this.style.background='transparent'">
+              <div style="display:flex;align-items:center;gap:8px;font-size:13px">
+                <span>${STATUS_ICON[s]}</span><span>${STATUS_LABEL[s]}</span>
+              </div>
+              <span class="badge ${STATUS_CLASS[s]}" style="font-size:12px">${statusCounts[s]||0}</span>
+            </div>`).join('')}
+          </div>
+        </div>
+
+        <!-- Eslatmalar -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🔔 Eslatmalar</div>
+            <button class="btn btn-sm btn-ghost" onclick="showPage('reminders')">+</button>
+          </div>
+          <div class="card-body" style="padding-top:12px">
+          ${reminders.length===0?`<div style="text-align:center;color:var(--text2);font-size:13px;padding:10px">Eslatmalar yo'q ✅</div>`:''}
+          ${reminders.map(r=>`
+            <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;
+              padding:10px;background:var(--card2);border-radius:8px">
+              <div style="width:8px;height:8px;border-radius:50%;background:${r.priority==='high'?'var(--red)':'var(--yellow)'};
+                margin-top:4px;flex-shrink:0"></div>
+              <div style="flex:1">
+                <div style="font-size:13px;font-weight:500">${r.text}</div>
+                <div style="font-size:11px;color:var(--text2);margin-top:2px">${fmtDate(r.date)}</div>
+              </div>
+              <button class="btn btn-sm btn-success" onclick="doneReminder(${r.id})" style="padding:3px 8px;font-size:11px">✓</button>
+            </div>`).join('')}
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Tezkor amallar -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">⚡ Tezkor amallar</div></div>
+      <div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-purple" onclick="openNewClientModal()">👥 + Yangi Mijoz</button>
+        <button class="btn btn-blue" onclick="openNewOrderModal()">📋 + Yangi Buyurtma</button>
+        <button class="btn btn-ghost" onclick="openChatModal()">📞 Suhbat Yozish</button>
+        <button class="btn btn-success" onclick="openPaymentQuick()">💳 To'lov Kirish</button>
+        <button class="btn btn-yellow" onclick="openReminderModal()">🔔 Eslatma Qo'shish</button>
+      </div>
+    </div>
+  `;
+}
+
+function doneReminder(id){
+  const rem=DB.get('reminders');
+  const r=rem.find(x=>x.id===id);
+  if(r){r.done=true;DB.set('reminders',rem);toast('Eslatma bajarildi ✅');renderDashboard();}
+}
+</script>
+
+
+<script>
+// ================================================================
+//  BUYURTMALAR SAHIFASI
+// ================================================================
+let orderFilter='all';
+let orderSearch='';
+
+function renderOrders(extra){
+  if(extra)orderFilter=extra;
+  const allOrders=DB.get('orders').filter(o=>!['delivered','cancelled'].includes(o.status));
+
+  document.getElementById('page-orders').innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-purple" onclick="openNewOrderModal()">＋ Yangi Buyurtma</button>
+        <div class="search-box">
+          <span>🔍</span>
+          <input placeholder="Raqam yoki mijoz..." id="orderSearch" value="${orderSearch}"
+            oninput="orderSearch=this.value;renderOrders()">
+        </div>
+      </div>
+    </div>
+
+    <div class="tabs" style="margin-bottom:16px">
+      ${[['all','Barchasi'],['new','Yangi'],['in_repair',"Ta'mirda"],['waiting','Kutmoqda'],
+         ['done','Tayyor'],['overdue',"O'tgan"]].map(([v,l])=>`
+        <div class="tab ${orderFilter===v?'active':''}" onclick="orderFilter='${v}';renderOrders()">${l}</div>
+      `).join('')}
+    </div>
+
+    <div class="card">
+      <div class="card-header" style="padding-bottom:12px">
+        <div class="card-title">Buyurtmalar ro'yxati</div>
+        <span style="font-size:13px;color:var(--text2)">Jami: <b>${allOrders.length}</b> ta</span>
+      </div>
+      <div class="table-wrap" style="border:none;border-radius:0">
+        ${renderOrdersTable()}
+      </div>
+    </div>
+  `;
+}
+
+function renderOrdersTable(){
+  let orders=DB.get('orders');
+  const now=new Date();
+
+  if(orderFilter==='overdue'){
+    orders=orders.filter(o=>!['delivered','cancelled'].includes(o.status)&&o.deadline&&new Date(o.deadline)<now);
+  } else if(orderFilter==='all'){
+    orders=orders.filter(o=>!['delivered','cancelled'].includes(o.status));
+  } else {
+    orders=orders.filter(o=>o.status===orderFilter);
+  }
+
+  if(orderSearch){
+    const s=orderSearch.toLowerCase();
+    orders=orders.filter(o=>o.num.toLowerCase().includes(s)||
+      o.clientName.toLowerCase().includes(s)||(o.clientPhone||'').includes(s));
+  }
+
+  orders.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+
+  if(orders.length===0)return`<div class="empty-state">
+    <div class="empty-icon">📋</div><div class="empty-title">Buyurtmalar topilmadi</div>
+    <div style="margin-top:12px"><button class="btn btn-purple" onclick="openNewOrderModal()">＋ Yangi Buyurtma</button></div>
+    </div>`;
+
+  return`<table><thead><tr>
+    <th>Raqam</th><th>Mijoz</th><th>Texnika</th><th>Muammo</th>
+    <th>Holat</th><th>Deadline</th><th>Narx</th><th>Ishchi</th><th>Amallar</th>
+  </tr></thead><tbody>
+  ${orders.map(o=>{
+    const dl=getDeadlineInfo(o.deadline);
+    return`<tr style="cursor:pointer${dl.overdue?';background:rgba(239,68,68,.04)':''}" onclick="openOrderDetail(${o.id})">
+      <td><span style="font-family:monospace;font-weight:700;color:var(--purple2);font-size:13px">${o.num}</span>
+        <div style="font-size:10px;color:var(--text2)">${fmtDateOnly(o.createdAt)}</div></td>
+      <td><div style="font-weight:600;font-size:13px">${o.clientName}</div>
+        <div style="font-size:11px;color:var(--text2)">${o.clientPhone||''}</div></td>
+      <td style="font-size:12px">
+        <div style="font-weight:500">${o.tvBrand||''} ${o.tvModel||''}</div>
+        <div style="color:var(--text2)">${o.tvDiagonal||''}</div></td>
+      <td style="max-width:150px"><div style="font-size:12px;overflow:hidden;white-space:nowrap;
+        text-overflow:ellipsis;max-width:140px" title="${o.problem}">${o.problem||'—'}</div></td>
+      <td><span class="badge ${STATUS_CLASS[o.status]}">${STATUS_ICON[o.status]} ${STATUS_LABEL[o.status]}</span></td>
+      <td><span class="badge ${dl.cls||'b-new'}">${dl.label}</span></td>
+      <td style="font-size:12px">
+        ${o.isPaid?`<span class="green-text money" style="font-size:13px">${fmtMoney(o.finalPrice)}</span>`:
+          o.estimatedPrice?`<span style="color:var(--text2)">~${fmtMoney(o.estimatedPrice)}</span>`:'—'}
+      </td>
+      <td style="font-size:12px">${o.masterName||'<span style="color:var(--text2)">—</span>'}</td>
+      <td onclick="event.stopPropagation()">
+        <div class="td-actions">
+          ${!['delivered','cancelled'].includes(o.status)?`
+            <button class="btn btn-sm btn-blue" onclick="openStatusModal(${o.id})" title="Holat">🔄</button>`:
+            `<button class="btn btn-sm btn-ghost" onclick="archiveOrder(${o.id})" title="Arxiv">📦</button>`}
+          <button class="btn btn-sm btn-ghost" onclick="openOrderDetail(${o.id})" title="Ko'rish">👁</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('')}
+  </tbody></table>`;
+}
+
+// ---------- YANGI BUYURTMA MODALI ----------
+function openNewOrderModal(clientId,clientName,clientPhone){
+  const clients=DB.get('clients');
+  const workers=DB.get('users').filter(u=>u.role==='master'&&u.active);
+  const defDeadline=addDays(3);
+  openModal('modalNewOrder',`
+    <div class="modal-header">
+      <div class="modal-title">📋 Yangi Buyurtma</div>
+      <button class="modal-close" onclick="closeModal('modalNewOrder')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="section-title">👥 Mijoz</div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Mavjud mijoz</label>
+          <select id="oClientId" onchange="fillClientFromSelect(this.value)">
+            <option value="">— Yangi mijoz —</option>
+            ${clients.map(c=>`<option value="${c.id}" ${c.id==clientId?'selected':''}>${c.name} (${c.phone||'tel yo\'q'})</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Mijoz ismi <span style="color:var(--red)">*</span></label>
+          <input id="oClientName" placeholder="Ismi-familiyasi" value="${clientName||''}">
+        </div>
+        <div class="form-group">
+          <label>Telefon</label>
+          <input id="oClientPhone" placeholder="+998 90 123 45 67" value="${clientPhone||''}">
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="section-title">📺 Texnika</div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Brand</label>
+          <select id="oTvBrand">
+            <option value="">— Tanlang —</option>
+            ${['Samsung','LG','Sony','Philips','TCL','Hisense','Artel','Boshqa'].map(b=>`<option>${b}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Model</label>
+          <input id="oTvModel" placeholder="UA55TU8000">
+        </div>
+        <div class="form-group">
+          <label>Diagonal</label>
+          <input id="oTvDiagonal" placeholder='55"'>
+        </div>
+        <div class="form-group">
+          <label>Seriya raqam</label>
+          <input id="oTvSerial" placeholder="0X4T3C...">
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="section-title">🔧 Buyurtma tafsiloti</div>
+      <div class="form-group col-span-2">
+        <label>Muammo tavsifi <span style="color:var(--red)">*</span></label>
+        <textarea id="oProblem" rows="3" placeholder="Ekran yonmayapti, ovoz bor..."></textarea>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Manba</label>
+          <select id="oSource">
+            <option value="walk_in">Bevosita keldi</option>
+            <option value="phone">Telefon</option>
+            <option value="telegram">Telegram</option>
+            <option value="instagram">Instagram</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>👨‍🔧 Ishchi biriktirish</label>
+          <select id="oMasterId">
+            <option value="">— Keyinroq tayinlanadi —</option>
+            ${workers.map(w=>`<option value="${w.id}">${w.name} (${w.commission}%)</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Taxminiy narx (so'm)</label>
+          <input type="number" id="oEstPrice" placeholder="150000" min="0">
+        </div>
+        <div class="form-group">
+          <label>⏰ Deadline <span style="color:var(--red)">*</span></label>
+          <input type="datetime-local" id="oDeadline" value="${defDeadline}"
+            min="${new Date().toISOString().slice(0,16)}">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalNewOrder')">Bekor</button>
+      <button class="btn btn-primary" style="width:auto" onclick="saveNewOrder()">✅ Saqlash</button>
+    </div>
+  `,'modal-lg');
+}
+
+function fillClientFromSelect(id){
+  if(!id)return;
+  const c=DB.get('clients').find(x=>x.id==id);
+  if(c){
+    document.getElementById('oClientName').value=c.name;
+    document.getElementById('oClientPhone').value=c.phone||'';
+  }
+}
+
+function saveNewOrder(){
+  const clientName=document.getElementById('oClientName').value.trim();
+  const problem=document.getElementById('oProblem').value.trim();
+  const deadline=document.getElementById('oDeadline').value;
+  if(!clientName){toast('Mijoz ismi kiritilishi shart!','error');return;}
+  if(!problem||problem.length<4){toast("Muammo tavsifi kamida 4 ta belgi bo'lishi kerak!",'error');return;}
+  if(!deadline){toast('Deadline kiritilishi shart!','error');return;}
+  if(new Date(deadline)<=new Date()){toast("Deadline o'tgan vaqt bo'lishi mumkin emas!",'error');return;}
+
+  const settings=DB.getObj('settings');
+  settings.orderCounter=(settings.orderCounter||0)+1;
+  const num=`TV-${new Date().getFullYear()}-${String(settings.orderCounter).padStart(4,'0')}`;
+  DB.setObj('settings',settings);
+
+  const masterId=document.getElementById('oMasterId').value;
+  const master=masterId?DB.get('users').find(u=>u.id==masterId):null;
+  const clientId=document.getElementById('oClientId').value;
+
+  // Yangi mijoz yaratish
+  let finalClientId=clientId?parseInt(clientId):null;
+  if(!finalClientId){
+    const clients=DB.get('clients');
+    const phone=document.getElementById('oClientPhone').value.trim();
+    const existing=phone?clients.find(c=>c.phone===phone):null;
+    if(existing){finalClientId=existing.id;}
+    else{
+      const newClient={id:nextId(clients),name:clientName,phone:phone,
+        address:'',notes:'',created:today(),totalOrders:0,totalSpent:0};
+      clients.push(newClient);
+      DB.set('clients',clients);
+      finalClientId=newClient.id;
+    }
+  }
+
+  // Mijoz statistikasini yangilash
+  const clients=DB.get('clients');
+  const cl=clients.find(c=>c.id===finalClientId);
+  if(cl){cl.totalOrders=(cl.totalOrders||0)+1;DB.set('clients',clients);}
+
+  const orders=DB.get('orders');
+  const newOrder={
+    id:nextId(orders),num,
+    clientId:finalClientId,
+    clientName,
+    clientPhone:document.getElementById('oClientPhone').value.trim(),
+    tvBrand:document.getElementById('oTvBrand').value,
+    tvModel:document.getElementById('oTvModel').value.trim(),
+    tvDiagonal:document.getElementById('oTvDiagonal').value.trim(),
+    tvSerial:document.getElementById('oTvSerial').value.trim(),
+    problem,
+    status:'new',
+    source:document.getElementById('oSource').value,
+    masterId:master?parseInt(masterId):null,
+    masterName:master?master.name:'',
+    estimatedPrice:parseFloat(document.getElementById('oEstPrice').value)||0,
+    finalPrice:0,partsCost:0,isPaid:false,payMethod:'',
+    deadline,
+    createdAt:today(),updatedAt:today(),
+    diagnosis:'',workDone:'',cancelReason:'',
+    history:[{status:'new',comment:'Buyurtma ochildi',by:currentUser.name,date:now()}]
+  };
+  orders.push(newOrder);
+  DB.set('orders',orders);
+  closeModal('modalNewOrder');
+  toast(`✅ Buyurtma yaratildi: ${num}`);
+  refreshAll();
+  renderOrders();
+}
+
+// ---------- BUYURTMA DETAIL ----------
+function openOrderDetail(id){
+  const o=DB.get('orders').find(x=>x.id===id);
+  if(!o)return;
+  const dl=getDeadlineInfo(o.deadline);
+  const next=NEXT_STATUS[o.status]||[];
+  const workers=DB.get('users').filter(u=>u.role==='master'&&u.active);
+
+  openModal('modalOrderDetail',`
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div class="modal-title">${o.num}</div>
+        <span class="badge ${STATUS_CLASS[o.status]}">${STATUS_ICON[o.status]} ${STATUS_LABEL[o.status]}</span>
+        <span class="badge ${dl.cls||'b-new'}">⏰ ${dl.label}</span>
+      </div>
+      <button class="modal-close" onclick="closeModal('modalOrderDetail')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 28px">
+        <div>
+          <div class="section-title">👥 Mijoz</div>
+          <div class="info-row"><span class="info-label">Ismi:</span><span class="info-value">${o.clientName}</span></div>
+          <div class="info-row"><span class="info-label">Telefon:</span><span class="info-value">${o.clientPhone||'—'}</span></div>
+          <div class="divider"></div>
+          <div class="section-title">📺 Texnika</div>
+          <div class="info-row"><span class="info-label">Brand:</span><span class="info-value">${o.tvBrand||'—'}</span></div>
+          <div class="info-row"><span class="info-label">Model:</span><span class="info-value">${o.tvModel||'—'}</span></div>
+          <div class="info-row"><span class="info-label">Diagonal:</span><span class="info-value">${o.tvDiagonal||'—'}</span></div>
+          <div class="divider"></div>
+          <div class="section-title">🔧 Muammo</div>
+          <div style="background:var(--card2);padding:12px;border-radius:8px;font-size:13px;line-height:1.6">${o.problem||'—'}</div>
+          ${o.diagnosis?`<div style="margin-top:10px"><div style="font-size:11px;color:var(--text2);margin-bottom:4px">Tashxis:</div>
+            <div style="background:rgba(16,185,129,.08);padding:10px;border-radius:8px;font-size:13px">${o.diagnosis}</div></div>`:''}
+          ${o.workDone?`<div style="margin-top:10px"><div style="font-size:11px;color:var(--text2);margin-bottom:4px">Bajarilgan:</div>
+            <div style="background:rgba(59,130,246,.08);padding:10px;border-radius:8px;font-size:13px">${o.workDone}</div></div>`:''}
+        </div>
+        <div>
+          <div class="section-title">👨‍🔧 Ishchilar</div>
+          <div class="info-row"><span class="info-label">Operator:</span><span class="info-value">${currentUser.name}</span></div>
+          <div class="info-row"><span class="info-label">Usta:</span>
+            <span class="info-value">${o.masterName||'<span style="color:var(--text2)">Tayinlanmagan</span>'}</span></div>
+          <div class="form-group" style="margin-top:8px">
+            <label>Ustani o'zgartirish</label>
+            <select id="detailMaster" onchange="changeMaster(${o.id},this.value)">
+              <option value="">— Tayinlanmagan —</option>
+              ${workers.map(w=>`<option value="${w.id}" ${w.id===o.masterId?'selected':''}>${w.name}</option>`).join('')}
+            </select>
+          </div>
+          <div class="divider"></div>
+          <div class="section-title">💰 Moliya</div>
+          <div class="info-row"><span class="info-label">Taxminiy narx:</span>
+            <span class="info-value money">${fmtMoney(o.estimatedPrice)}</span></div>
+          <div class="info-row"><span class="info-label">Zapchastlar:</span>
+            <span class="info-value money">${fmtMoney(o.partsCost)}</span></div>
+          <div class="info-row"><span class="info-label">Yakuniy narx:</span>
+            <span class="info-value green-text money" style="font-weight:800">${o.isPaid?fmtMoney(o.finalPrice):'<span style="color:var(--text2)">To\'lanmagan</span>'}</span></div>
+          <div class="divider"></div>
+          <div class="section-title">⏰ Vaqt</div>
+          <div class="info-row"><span class="info-label">Qabul:</span><span class="info-value">${fmtDate(o.createdAt)}</span></div>
+          <div class="info-row"><span class="info-label">Deadline:</span>
+            <span class="info-value"><span class="badge ${dl.cls||'b-new'}">${fmtDate(o.deadline)}</span></span></div>
+          <div class="divider"></div>
+          <div class="section-title">📜 Status tarixi</div>
+          <div style="max-height:160px;overflow-y:auto">
+            ${(o.history||[]).slice().reverse().map(h=>`
+            <div style="display:flex;gap:8px;padding:7px;background:var(--card2);border-radius:8px;margin-bottom:6px;font-size:12px">
+              <span class="badge ${STATUS_CLASS[h.status]||'b-new'}" style="font-size:10px">${STATUS_LABEL[h.status]||h.status}</span>
+              <div style="flex:1">
+                ${h.comment?`<div>${h.comment}</div>`:''}
+                <div style="color:var(--text2)">${h.by} · ${h.date}</div>
+              </div>
+            </div>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalOrderDetail')">Yopish</button>
+      ${o.status==='done'&&!o.isPaid?`<button class="btn btn-success" onclick="closeModal('modalOrderDetail');openPaymentModal(${o.id})">💳 To'lov qabul qilish</button>`:''}
+      ${!['delivered','cancelled'].includes(o.status)?`<button class="btn btn-primary" style="width:auto" onclick="closeModal('modalOrderDetail');openStatusModal(${o.id})">🔄 Holat o'zgartirish</button>`:''}
+    </div>
+  `,'modal-lg');
+}
+
+function changeMaster(orderId,masterId){
+  const orders=DB.get('orders');
+  const o=orders.find(x=>x.id===orderId);
+  if(!o)return;
+  const master=masterId?DB.get('users').find(u=>u.id==masterId):null;
+  o.masterId=master?parseInt(masterId):null;
+  o.masterName=master?master.name:'';
+  o.updatedAt=today();
+  DB.set('orders',orders);
+  toast(master?`Usta tayinlandi: ${master.name}`:'Usta olib tashlandi');
+}
+
+// ---------- STATUS MODAL ----------
+function openStatusModal(id){
+  const o=DB.get('orders').find(x=>x.id===id);
+  if(!o)return;
+  const next=NEXT_STATUS[o.status]||[];
+
+  openModal('modalStatus',`
+    <div class="modal-header">
+      <div class="modal-title">🔄 Holat o'zgartirish — ${o.num}</div>
+      <button class="modal-close" onclick="closeModal('modalStatus')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;
+        background:var(--card2);border-radius:8px;margin-bottom:16px">
+        <span style="font-size:13px;color:var(--text2)">Hozirgi holat:</span>
+        <span class="badge ${STATUS_CLASS[o.status]}">${STATUS_ICON[o.status]} ${STATUS_LABEL[o.status]}</span>
+      </div>
+      ${next.length===0?`<div style="text-align:center;padding:20px;color:var(--text2)">
+        Bu yakuniy holat — o'zgartirib bo'lmaydi</div>`:`
+      <div class="form-group">
+        <label>Yangi holat</label>
+        <div style="display:flex;flex-direction:column;gap:8px" id="statusOptions">
+          ${next.map(s=>`
+          <label style="display:flex;align-items:center;gap:10px;padding:11px 14px;
+            border:2px solid var(--border);border-radius:10px;cursor:pointer;transition:all .15s"
+            onmouseover="this.style.borderColor='var(--purple)'" onmouseout="checkStatusBorder(this)">
+            <input type="radio" name="newStatus" value="${s}" style="accent-color:var(--purple)">
+            <span style="font-size:16px">${STATUS_ICON[s]}</span>
+            <span style="font-weight:600;font-size:13.5px">${STATUS_LABEL[s]}</span>
+            ${s==='delivered'?'<span class="badge b-done" style="margin-left:auto;font-size:10px">To\'lov kerak</span>':''}
+            ${s==='cancelled'?'<span class="badge b-cancelled" style="margin-left:auto;font-size:10px">Arxivlanadi</span>':''}
+          </label>`).join('')}
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Izoh (ixtiyoriy)</label>
+        <textarea id="statusComment" rows="2" placeholder="Sabab yoki qo'shimcha..."></textarea>
+      </div>`}
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalStatus')">Bekor</button>
+      ${next.length>0?`<button class="btn btn-primary" style="width:auto" onclick="saveStatus(${o.id})">✅ Tasdiqlash</button>`:''}
+    </div>
+  `,'modal-md');
+}
+
+function checkStatusBorder(el){
+  const inp=el.querySelector('input');
+  el.style.borderColor=inp&&inp.checked?'var(--purple)':'var(--border)';
+}
+
+function saveStatus(orderId){
+  const selected=document.querySelector('input[name="newStatus"]:checked');
+  if(!selected){toast('Holat tanlang!','error');return;}
+  const newStatus=selected.value;
+  const comment=document.getElementById('statusComment').value.trim();
+
+  const orders=DB.get('orders');
+  const o=orders.find(x=>x.id===orderId);
+  if(!o)return;
+  const oldStatus=o.status;
+  o.status=newStatus;
+  o.updatedAt=today();
+  o.history=o.history||[];
+  o.history.push({status:newStatus,comment:comment||'',by:currentUser.name,date:now()});
+  if(newStatus==='cancelled'){o.cancelReason=comment||''}
+  DB.set('orders',orders);
+
+  closeModal('modalStatus');
+  toast(`✅ Holat o'zgardi: ${STATUS_LABEL[newStatus]}`);
+
+  if(newStatus==='delivered'&&!o.isPaid){
+    setTimeout(()=>openPaymentModal(orderId),300);
+  }
+  refreshAll();
+  if(currentPage==='orders')renderOrders();
+  if(currentPage==='dashboard')renderDashboard();
+}
+
+// ---------- TO'LOV MODALI ----------
+function openPaymentModal(id){
+  const o=DB.get('orders').find(x=>x.id===id);
+  if(!o)return;
+  openModal('modalPayment',`
+    <div class="modal-header">
+      <div class="modal-title">💳 To'lov qabul qilish — ${o.num}</div>
+      <button class="modal-close" onclick="closeModal('modalPayment')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--card2);padding:14px;border-radius:10px;margin-bottom:16px;font-size:13px">
+        <div><b>${o.clientName}</b> · ${o.clientPhone||'—'}</div>
+        <div style="color:var(--text2);margin-top:4px">Taxminiy narx: ${fmtMoney(o.estimatedPrice)}</div>
+      </div>
+      <div class="form-group">
+        <label>Yakuniy summa (so'm) <span style="color:var(--red)">*</span></label>
+        <input type="number" id="payAmount" value="${o.estimatedPrice||''}" placeholder="250000" min="0">
+      </div>
+      <div class="form-group">
+        <label>To'lov usuli</label>
+        <select id="payMethod">
+          <option value="cash">💵 Naqd pul</option>
+          <option value="card">💳 Plastik karta</option>
+          <option value="transfer">🏦 Bank o'tkazmasi</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Izoh</label>
+        <input id="payComment" placeholder="Mijoz to'liq to'ladi...">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalPayment')">Bekor</button>
+      <button class="btn btn-success" onclick="savePayment(${o.id})">💳 To'lovni qabul qilish</button>
+    </div>
+  `,'modal-md');
+}
+
+function openPaymentQuick(){
+  const doneOrders=DB.get('orders').filter(o=>o.status==='done'&&!o.isPaid);
+  if(doneOrders.length===0){toast("Tayyor bo'lib to'lanmagan buyurtma yo'q",'info');return;}
+  openModal('modalPayQuick',`
+    <div class="modal-header">
+      <div class="modal-title">💳 To'lov qabul qilish</div>
+      <button class="modal-close" onclick="closeModal('modalPayQuick')">✕</button>
+    </div>
+    <div class="modal-body">
+      ${doneOrders.map(o=>`
+      <div style="display:flex;align-items:center;justify-content:space-between;
+        padding:12px 14px;background:var(--card2);border-radius:10px;margin-bottom:8px">
+        <div>
+          <div style="font-weight:700;color:var(--purple2)">${o.num}</div>
+          <div style="font-size:12px;color:var(--text2)">${o.clientName} · ${fmtMoney(o.estimatedPrice)}</div>
+        </div>
+        <button class="btn btn-sm btn-success" onclick="closeModal('modalPayQuick');openPaymentModal(${o.id})">💳 To'lov</button>
+      </div>`).join('')}
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalPayQuick')">Yopish</button>
+    </div>
+  `,'modal-md');
+}
+
+function savePayment(orderId){
+  const amount=parseFloat(document.getElementById('payAmount').value);
+  if(!amount||amount<=0){toast("To'lov summasi kiritilishi shart!",'error');return;}
+  const method=document.getElementById('payMethod').value;
+  const comment=document.getElementById('payComment').value.trim();
+
+  const orders=DB.get('orders');
+  const o=orders.find(x=>x.id===orderId);
+  if(!o)return;
+  o.finalPrice=amount;
+  o.isPaid=true;
+  o.payMethod=method;
+  o.status='delivered';
+  o.updatedAt=today();
+  o.history=o.history||[];
+  o.history.push({status:'delivered',comment:`To'lov: ${fmtMoney(amount)} (${method})${comment?' — '+comment:''}`,by:currentUser.name,date:now()});
+
+  // Ustaga komisyon
+  if(o.masterId){
+    const users=DB.get('users');
+    const master=users.find(u=>u.id===o.masterId);
+    if(master&&master.commission>0){
+      const comm=Math.round(amount*master.commission/100);
+      master.balance=(master.balance||0)+comm;
+      DB.set('users',users);
+      toast(`💰 ${master.name}ga komisyon: ${fmtMoney(comm)}`,'info');
+    }
+  }
+
+  // Moliya
+  const fin=DB.getObj('finance');
+  fin.balance=(fin.balance||0)+amount;
+  fin.totalIncome=(fin.totalIncome||0)+amount;
+  DB.setObj('finance',fin);
+
+  // Tranzaksiya
+  const tr=DB.get('transactions');
+  tr.push({id:nextId(tr),type:'income',amount,desc:`Buyurtma to'lovi: ${o.num}`,date:today(),orderId});
+  DB.set('transactions',tr);
+
+  // Mijoz statistika
+  const clients=DB.get('clients');
+  const cl=clients.find(c=>c.id===o.clientId);
+  if(cl){cl.totalSpent=(cl.totalSpent||0)+amount;DB.set('clients',clients);}
+
+  DB.set('orders',orders);
+  closeModal('modalPayment');
+  closeModal('modalPayQuick');
+  toast(`✅ To'lov qabul qilindi: ${fmtMoney(amount)}`);
+  refreshAll();
+}
+
+function archiveOrder(id){
+  if(!confirm("Buyurtmani arxivlamoqchimisiz?"))return;
+  const orders=DB.get('orders');
+  const o=orders.find(x=>x.id===id);
+  if(o){o.archived=true;DB.set('orders',orders);toast('📦 Arxivlandi');refreshAll();}
+}
+</script>
+
+
+<script>
+// ================================================================
+//  MIJOZLAR SAHIFASI
+// ================================================================
+let clientSearch='';
+function renderClients(){
+  let clients=DB.get('clients');
+  if(clientSearch){
+    const s=clientSearch.toLowerCase();
+    clients=clients.filter(c=>c.name.toLowerCase().includes(s)||(c.phone||'').includes(s));
+  }
+  document.getElementById('page-clients').innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+      <div class="search-box">
+        <span>🔍</span>
+        <input placeholder="Ism yoki telefon..." id="clientSearch" value="${clientSearch}"
+          oninput="clientSearch=this.value;renderClients()">
+      </div>
+      <button class="btn btn-purple" onclick="openNewClientModal()">＋ Yangi Mijoz</button>
+    </div>
+    <div class="card">
+      <div class="card-header" style="padding-bottom:12px">
+        <div class="card-title">Mijozlar bazasi</div>
+        <span style="font-size:13px;color:var(--text2)">Jami: <b>${clients.length}</b> ta</span>
+      </div>
+      <div class="table-wrap" style="border:none;border-radius:0">
+      ${clients.length===0?`<div class="empty-state">
+        <div class="empty-icon">👥</div><div class="empty-title">Mijozlar topilmadi</div>
+        <div style="margin-top:12px"><button class="btn btn-purple" onclick="openNewClientModal()">＋ Yangi Mijoz</button></div>
+        </div>`:`
+      <table><thead><tr>
+        <th>#</th><th>Ism</th><th>Telefon</th><th>Manzil</th>
+        <th>Buyurtmalar</th><th>Umumiy xarajat</th><th>Qo'shilgan</th><th>Amallar</th>
+      </tr></thead><tbody>
+      ${clients.map((c,i)=>`<tr>
+        <td style="color:var(--text2);font-size:12px">${i+1}</td>
+        <td><div style="font-weight:600">${c.name}</div></td>
+        <td style="font-family:monospace;font-size:13px">${c.phone||'—'}</td>
+        <td style="font-size:12px;color:var(--text2)">${c.address||'—'}</td>
+        <td><span class="badge b-progress">${c.totalOrders||0} ta</span></td>
+        <td class="green-text money" style="font-size:13px">${fmtMoney(c.totalSpent||0)}</td>
+        <td style="font-size:12px;color:var(--text2)">${fmtDateOnly(c.created)}</td>
+        <td><div class="td-actions">
+          <button class="btn btn-sm btn-blue" onclick="openClientOrders(${c.id})" title="Buyurtmalar">📋</button>
+          <button class="btn btn-sm btn-purple" onclick="openNewOrderModal(${c.id},'${c.name}','${c.phone||''}')" title="Buyurtma qo'sh">＋</button>
+          <button class="btn btn-sm btn-ghost" onclick="editClient(${c.id})" title="Tahrirlash">✏️</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteClient(${c.id})" title="O'chirish">🗑</button>
+        </div></td>
+      </tr>`).join('')}
+      </tbody></table>`}
+      </div>
+    </div>`;
+}
+
+function openNewClientModal(prefill){
+  openModal('modalNewClient',`
+    <div class="modal-header">
+      <div class="modal-title">👥 Yangi Mijoz</div>
+      <button class="modal-close" onclick="closeModal('modalNewClient')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label>Ismi-familiyasi <span style="color:var(--red)">*</span></label>
+        <input id="cName" placeholder="Alisher Karimov" value="${prefill?.name||''}"></div>
+      <div class="grid-2">
+        <div class="form-group"><label>Asosiy telefon</label>
+          <input id="cPhone" placeholder="+998 90 123 45 67" value="${prefill?.phone||''}"></div>
+        <div class="form-group"><label>Qo'shimcha telefon</label>
+          <input id="cPhone2" placeholder="+998 90 123 45 67"></div>
+      </div>
+      <div class="form-group"><label>Manzil</label>
+        <input id="cAddress" placeholder="Toshkent, Chilonzor tumani"></div>
+      <div class="form-group"><label>Izoh</label>
+        <textarea id="cNotes" rows="2" placeholder="Qo'shimcha ma'lumot..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalNewClient')">Bekor</button>
+      <button class="btn btn-primary" style="width:auto" onclick="saveNewClient()">✅ Saqlash</button>
+    </div>
+  `,'modal-md');
+}
+
+function saveNewClient(){
+  const name=document.getElementById('cName').value.trim();
+  if(!name){toast('Ism kiritilishi shart!','error');return;}
+  const clients=DB.get('clients');
+  const phone=document.getElementById('cPhone').value.trim();
+  if(phone&&clients.find(c=>c.phone===phone)){toast('Bu telefon raqam allaqachon mavjud!','error');return;}
+  clients.push({id:nextId(clients),name,phone,phone2:document.getElementById('cPhone2').value.trim(),
+    address:document.getElementById('cAddress').value.trim(),
+    notes:document.getElementById('cNotes').value.trim(),
+    created:today(),totalOrders:0,totalSpent:0});
+  DB.set('clients',clients);
+  closeModal('modalNewClient');
+  toast('✅ Mijoz qo\'shildi');
+  renderClients();
+}
+
+function editClient(id){
+  const clients=DB.get('clients');
+  const c=clients.find(x=>x.id===id);
+  if(!c)return;
+  openModal('modalEditClient',`
+    <div class="modal-header">
+      <div class="modal-title">✏️ Mijozni tahrirlash</div>
+      <button class="modal-close" onclick="closeModal('modalEditClient')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label>Ismi-familiyasi</label>
+        <input id="ecName" value="${c.name}"></div>
+      <div class="grid-2">
+        <div class="form-group"><label>Telefon</label>
+          <input id="ecPhone" value="${c.phone||''}"></div>
+        <div class="form-group"><label>Manzil</label>
+          <input id="ecAddress" value="${c.address||''}"></div>
+      </div>
+      <div class="form-group"><label>Izoh</label>
+        <textarea id="ecNotes" rows="2">${c.notes||''}</textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalEditClient')">Bekor</button>
+      <button class="btn btn-primary" style="width:auto" onclick="saveEditClient(${id})">✅ Saqlash</button>
+    </div>
+  `,'modal-md');
+}
+
+function saveEditClient(id){
+  const clients=DB.get('clients');
+  const c=clients.find(x=>x.id===id);
+  if(!c)return;
+  c.name=document.getElementById('ecName').value.trim()||c.name;
+  c.phone=document.getElementById('ecPhone').value.trim();
+  c.address=document.getElementById('ecAddress').value.trim();
+  c.notes=document.getElementById('ecNotes').value.trim();
+  DB.set('clients',clients);
+  closeModal('modalEditClient');
+  toast('✅ Mijoz yangilandi');
+  renderClients();
+}
+
+function deleteClient(id){
+  if(!confirm('Mijozni o\'chirishni xohlaysizmi?'))return;
+  const clients=DB.get('clients').filter(c=>c.id!==id);
+  DB.set('clients',clients);
+  toast('Mijoz o\'chirildi','info');
+  renderClients();
+}
+
+function openClientOrders(clientId){
+  const orders=DB.get('orders').filter(o=>o.clientId===clientId);
+  const c=DB.get('clients').find(x=>x.id===clientId);
+  openModal('modalClientOrders',`
+    <div class="modal-header">
+      <div class="modal-title">📋 ${c?.name} — Buyurtmalar tarixi</div>
+      <button class="modal-close" onclick="closeModal('modalClientOrders')">✕</button>
+    </div>
+    <div class="modal-body">
+    ${orders.length===0?`<div class="empty-state"><div class="empty-icon">📋</div>
+      <div class="empty-title">Buyurtmalar yo'q</div></div>`:`
+    <div class="table-wrap">
+      <table><thead><tr><th>Raqam</th><th>Texnika</th><th>Holat</th><th>Narx</th><th>Sana</th></tr></thead>
+      <tbody>${orders.map(o=>`<tr>
+        <td style="font-family:monospace;font-weight:700;color:var(--purple2)">${o.num}</td>
+        <td style="font-size:12px">${[o.tvBrand,o.tvModel].filter(Boolean).join(' ')||'—'}</td>
+        <td><span class="badge ${STATUS_CLASS[o.status]}">${STATUS_LABEL[o.status]}</span></td>
+        <td class="money green-text">${fmtMoney(o.finalPrice||o.estimatedPrice)}</td>
+        <td style="font-size:12px">${fmtDateOnly(o.createdAt)}</td>
+      </tr>`).join('')}</tbody></table>
+    </div>`}
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalClientOrders')">Yopish</button>
+      <button class="btn btn-purple" onclick="closeModal('modalClientOrders');openNewOrderModal(${clientId},'${c?.name}','${c?.phone||''}')">＋ Yangi buyurtma</button>
+    </div>
+  `,'modal-lg');
+}
+
+// ================================================================
+//  MOLIYA SAHIFASI
+// ================================================================
+function renderFinance(){
+  const fin=DB.getObj('finance');
+  const tr=DB.get('transactions').slice().reverse();
+  const sof=(fin.totalIncome||0)-(fin.totalExpense||0);
+  document.getElementById('page-finance').innerHTML=`
+    <div class="stats-grid" style="margin-bottom:20px">
+      <div class="stat-card">
+        <div class="stat-icon si-green">💰</div>
+        <div><div class="stat-label">Joriy balans</div>
+          <div class="stat-value green-text money">${(fin.balance||0).toLocaleString('uz-UZ')}</div>
+          <div class="stat-sub">so'm</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon si-blue">📈</div>
+        <div><div class="stat-label">Jami tushum</div>
+          <div class="stat-value blue-text money">${(fin.totalIncome||0).toLocaleString('uz-UZ')}</div>
+          <div class="stat-sub">so'm</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon si-red">📉</div>
+        <div><div class="stat-label">Jami xarajat</div>
+          <div class="stat-value red-text money">${(fin.totalExpense||0).toLocaleString('uz-UZ')}</div>
+          <div class="stat-sub">so'm</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon si-cyan">💎</div>
+        <div><div class="stat-label">Sof foyda</div>
+          <div class="stat-value money" style="color:var(--cyan)">${sof.toLocaleString('uz-UZ')}</div>
+          <div class="stat-sub">so'm</div></div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 340px;gap:18px">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📊 Tranzaksiyalar tarixi</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-sm btn-success" onclick="openAddIncome()">＋ Kirim</button>
+            <button class="btn btn-sm btn-danger" onclick="openAddExpense()">— Chiqim</button>
+          </div>
+        </div>
+        <div class="table-wrap" style="border:none;border-radius:0;margin-top:12px">
+        ${tr.length===0?`<div class="empty-state"><div class="empty-icon">💰</div>
+          <div class="empty-title">Tranzaksiyalar yo'q</div></div>`:`
+        <table><thead><tr><th>Sana</th><th>Tur</th><th>Tavsif</th><th>Summa</th></tr></thead>
+        <tbody>${tr.slice(0,50).map(t=>`<tr>
+          <td style="font-size:12px;color:var(--text2)">${fmtDateOnly(t.date)}</td>
+          <td><span class="badge ${t.type==='income'?'b-done':'b-cancelled'}">
+            ${t.type==='income'?'📈 Kirim':'📉 Chiqim'}</span></td>
+          <td style="font-size:13px">${t.desc}</td>
+          <td class="money" style="font-weight:700;${t.type==='income'?'color:var(--green)':'color:var(--red)'}">
+            ${t.type==='income'?'+':'−'}${fmtMoney(t.amount)}</td>
+        </tr>`).join('')}</tbody></table>`}
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="card">
+          <div class="card-header"><div class="card-title">⚡ Tezkor amal</div></div>
+          <div class="card-body">
+            <button class="btn btn-success" style="width:100%;justify-content:center;margin-bottom:8px" onclick="openAddIncome()">
+              ＋ Kirim qo'shish</button>
+            <button class="btn btn-danger" style="width:100%;justify-content:center" onclick="openAddExpense()">
+              — Xarajat qo'shish</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">📊 Bugun</div></div>
+          <div class="card-body">
+            ${(()=>{
+              const todayTr=DB.get('transactions').filter(t=>t.date===today());
+              const todayIn=todayTr.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+              const todayOut=todayTr.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+              return`<div class="info-row"><span class="info-label">Kirim:</span>
+                <span class="green-text money">${fmtMoney(todayIn)}</span></div>
+              <div class="info-row"><span class="info-label">Chiqim:</span>
+                <span class="red-text money">${fmtMoney(todayOut)}</span></div>
+              <div class="divider"></div>
+              <div class="info-row"><span class="info-label">Balans:</span>
+                <span class="money" style="font-weight:800;color:var(--cyan)">${fmtMoney(todayIn-todayOut)}</span></div>`;
+            })()}
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function openAddIncome(){
+  openModal('modalIncome',`
+    <div class="modal-header"><div class="modal-title">📈 Kirim qo'shish</div>
+      <button class="modal-close" onclick="closeModal('modalIncome')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Summa (so'm) <span style="color:var(--red)">*</span></label>
+        <input type="number" id="inAmount" placeholder="500000" min="0"></div>
+      <div class="form-group"><label>Tavsif <span style="color:var(--red)">*</span></label>
+        <input id="inDesc" placeholder="Kirim sababi..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalIncome')">Bekor</button>
+      <button class="btn btn-success" onclick="saveTransaction('income')">✅ Kirim</button>
+    </div>`,'modal-sm');
+}
+
+function openAddExpense(){
+  openModal('modalExpense',`
+    <div class="modal-header"><div class="modal-title">📉 Xarajat qo'shish</div>
+      <button class="modal-close" onclick="closeModal('modalExpense')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Summa (so'm) <span style="color:var(--red)">*</span></label>
+        <input type="number" id="exAmount" placeholder="50000" min="0"></div>
+      <div class="form-group"><label>Tavsif <span style="color:var(--red)">*</span></label>
+        <input id="exDesc" placeholder="Xarajat sababi..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalExpense')">Bekor</button>
+      <button class="btn btn-danger" onclick="saveTransaction('expense')">— Chiqim</button>
+    </div>`,'modal-sm');
+}
+
+function saveTransaction(type){
+  const isIncome=type==='income';
+  const amountEl=document.getElementById(isIncome?'inAmount':'exAmount');
+  const descEl=document.getElementById(isIncome?'inDesc':'exDesc');
+  const amount=parseFloat(amountEl?.value);
+  const desc=descEl?.value.trim();
+  if(!amount||amount<=0){toast('Summa kiritilishi shart!','error');return;}
+  if(!desc){toast('Tavsif kiritilishi shart!','error');return;}
+  const fin=DB.getObj('finance');
+  if(isIncome){fin.balance+=amount;fin.totalIncome=(fin.totalIncome||0)+amount;}
+  else{fin.balance-=amount;fin.totalExpense=(fin.totalExpense||0)+amount;}
+  DB.setObj('finance',fin);
+  const tr=DB.get('transactions');
+  tr.push({id:nextId(tr),type,amount,desc,date:today(),orderId:null});
+  DB.set('transactions',tr);
+  closeModal(isIncome?'modalIncome':'modalExpense');
+  toast(isIncome?`✅ Kirim: ${fmtMoney(amount)}`:`✅ Chiqim: ${fmtMoney(amount)}`);
+  updateTopbarBalance();
+  renderFinance();
+}
+
+// ================================================================
+//  ISHCHILAR SAHIFASI
+// ================================================================
+function renderWorkers(){
+  const workers=DB.get('users').filter(u=>u.role!=='admin');
+  document.getElementById('page-workers').innerHTML=`
+    <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+      <button class="btn btn-purple" onclick="openNewWorkerModal()">＋ Yangi Ishchi</button>
+    </div>
+    <div class="card">
+      <div class="card-header" style="padding-bottom:12px">
+        <div class="card-title">👨‍🔧 Ishchilar va balanslar</div>
+        <span style="font-size:13px;color:var(--text2)">${workers.length} ta ishchi</span>
+      </div>
+      <div class="table-wrap" style="border:none;border-radius:0">
+      ${workers.length===0?`<div class="empty-state"><div class="empty-icon">👷</div>
+        <div class="empty-title">Ishchilar yo'q</div></div>`:`
+      <table><thead><tr>
+        <th>Ishchi</th><th>Rol</th><th>Telefon</th><th>Balans</th>
+        <th>Komisyon</th><th>Holat</th><th>Amallar</th>
+      </tr></thead><tbody>
+      ${workers.map(w=>`<tr>
+        <td>
+          <div style="display:flex;align-items:center;gap:9px">
+            <div style="width:32px;height:32px;border-radius:50%;background:var(--purple);
+              display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">
+              ${w.name[0]}</div>
+            <div><div style="font-weight:600">${w.name}</div>
+              <div style="font-size:11px;color:var(--text2)">@${w.username}</div></div>
+          </div>
+        </td>
+        <td><span class="badge ${w.role==='master'?'b-master':'b-operator'}">${w.role==='master'?'👷 Usta':'🖥 Operator'}</span></td>
+        <td style="font-family:monospace;font-size:13px">${w.phone||'—'}</td>
+        <td><span class="money green-text" style="font-weight:700">${fmtMoney(w.balance||0)}</span></td>
+        <td><span class="badge b-blue" style="background:rgba(59,130,246,.1);color:var(--blue);border:1px solid rgba(59,130,246,.3)">
+          ${w.commission||0}%</span></td>
+        <td><span class="badge ${w.active?'b-done':'b-cancelled'}">${w.active?'✅ Faol':'🔒 Bloklangan'}</span></td>
+        <td><div class="td-actions">
+          <button class="btn btn-sm btn-success" onclick="openSalaryModal(${w.id})" title="Ish haqi to'lash">💳</button>
+          <button class="btn btn-sm btn-ghost" onclick="editWorker(${w.id})" title="Tahrirlash">✏️</button>
+          <button class="btn btn-sm ${w.active?'btn-danger':'btn-success'}" 
+            onclick="toggleWorker(${w.id})" title="${w.active?'Bloklash':'Faollashtirish'}">
+            ${w.active?'🔒':'🔓'}</button>
+        </div></td>
+      </tr>`).join('')}
+      </tbody></table>`}
+      </div>
+    </div>`;
+}
+
+function openNewWorkerModal(){
+  openModal('modalNewWorker',`
+    <div class="modal-header"><div class="modal-title">👨‍🔧 Yangi Ishchi</div>
+      <button class="modal-close" onclick="closeModal('modalNewWorker')">✕</button></div>
+    <div class="modal-body">
+      <div class="grid-2">
+        <div class="form-group"><label>Ismi-familiyasi <span style="color:var(--red)">*</span></label>
+          <input id="wName" placeholder="Sardor Toshmatov"></div>
+        <div class="form-group"><label>Login <span style="color:var(--red)">*</span></label>
+          <input id="wUsername" placeholder="sardor_usta"></div>
+        <div class="form-group"><label>Parol <span style="color:var(--red)">*</span></label>
+          <input id="wPassword" placeholder="kamida 4 ta belgi"></div>
+        <div class="form-group"><label>Telefon</label>
+          <input id="wPhone" placeholder="+998 90 123 45 67"></div>
+        <div class="form-group"><label>Rol</label>
+          <select id="wRole">
+            <option value="master">👷 Usta (ta'mirchi)</option>
+            <option value="operator">🖥 Operator</option>
+          </select></div>
+        <div class="form-group"><label>Komisyon foizi (%)</label>
+          <input type="number" id="wCommission" placeholder="30" min="0" max="100" value="30"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalNewWorker')">Bekor</button>
+      <button class="btn btn-primary" style="width:auto" onclick="saveNewWorker()">✅ Saqlash</button>
+    </div>`,'modal-md');
+}
+
+function saveNewWorker(){
+  const name=document.getElementById('wName').value.trim();
+  const username=document.getElementById('wUsername').value.trim().toLowerCase();
+  const password=document.getElementById('wPassword').value;
+  if(!name||!username||!password){toast('Barcha majburiy maydonlarni to\'ldiring!','error');return;}
+  if(password.length<4){toast('Parol kamida 4 ta belgi!','error');return;}
+  const users=DB.get('users');
+  if(users.find(u=>u.username===username)){toast('Bu login band!','error');return;}
+  users.push({id:nextId(users),name,username,password,
+    phone:document.getElementById('wPhone').value.trim(),
+    role:document.getElementById('wRole').value,
+    commission:parseInt(document.getElementById('wCommission').value)||0,
+    balance:0,active:true});
+  DB.set('users',users);
+  closeModal('modalNewWorker');
+  toast('✅ Ishchi qo\'shildi');
+  renderWorkers();
+}
+
+function editWorker(id){
+  const w=DB.get('users').find(u=>u.id===id);
+  if(!w)return;
+  openModal('modalEditWorker',`
+    <div class="modal-header"><div class="modal-title">✏️ Ishchini tahrirlash</div>
+      <button class="modal-close" onclick="closeModal('modalEditWorker')">✕</button></div>
+    <div class="modal-body">
+      <div class="grid-2">
+        <div class="form-group"><label>Ismi</label><input id="ewName" value="${w.name}"></div>
+        <div class="form-group"><label>Telefon</label><input id="ewPhone" value="${w.phone||''}"></div>
+        <div class="form-group"><label>Komisyon (%)</label>
+          <input type="number" id="ewComm" value="${w.commission||0}" min="0" max="100"></div>
+        <div class="form-group"><label>Yangi parol (bo'sh = o'zgarmaydi)</label>
+          <input id="ewPass" placeholder="Yangi parol..."></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalEditWorker')">Bekor</button>
+      <button class="btn btn-primary" style="width:auto" onclick="saveEditWorker(${id})">✅ Saqlash</button>
+    </div>`,'modal-md');
+}
+
+function saveEditWorker(id){
+  const users=DB.get('users');
+  const w=users.find(u=>u.id===id);
+  if(!w)return;
+  w.name=document.getElementById('ewName').value.trim()||w.name;
+  w.phone=document.getElementById('ewPhone').value.trim();
+  w.commission=parseInt(document.getElementById('ewComm').value)||0;
+  const np=document.getElementById('ewPass').value;
+  if(np&&np.length>=4)w.password=np;
+  DB.set('users',users);
+  closeModal('modalEditWorker');
+  toast('✅ Ishchi yangilandi');
+  renderWorkers();
+}
+
+function toggleWorker(id){
+  const users=DB.get('users');
+  const w=users.find(u=>u.id===id);
+  if(!w)return;
+  if(w.id===currentUser.id){toast("O'zingizni bloklay olmaysiz!",'error');return;}
+  w.active=!w.active;
+  DB.set('users',users);
+  toast(w.active?'✅ Faollashtirildi':'🔒 Bloklandi');
+  renderWorkers();
+}
+
+function openSalaryModal(id){
+  const w=DB.get('users').find(u=>u.id===id);
+  if(!w)return;
+  openModal('modalSalary',`
+    <div class="modal-header"><div class="modal-title">💳 Ish haqi to'lash — ${w.name}</div>
+      <button class="modal-close" onclick="closeModal('modalSalary')">✕</button></div>
+    <div class="modal-body">
+      <div style="background:var(--card2);padding:14px;border-radius:10px;margin-bottom:16px">
+        <div style="font-size:13px;color:var(--text2)">Joriy balans:</div>
+        <div class="money green-text" style="font-size:22px;font-weight:800">${fmtMoney(w.balance||0)}</div>
+      </div>
+      <div class="form-group"><label>To'lov summasi (so'm) <span style="color:var(--red)">*</span></label>
+        <input type="number" id="salAmount" placeholder="${w.balance||0}" max="${w.balance||0}" min="0"></div>
+      <div class="form-group"><label>To'lov usuli</label>
+        <select id="salMethod">
+          <option value="cash">💵 Naqd</option>
+          <option value="card">💳 Karta</option>
+          <option value="transfer">🏦 O'tkazma</option>
+        </select></div>
+      <div class="form-group"><label>Izoh</label>
+        <input id="salNote" placeholder="Iyun oyi ish haqi..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalSalary')">Bekor</button>
+      <button class="btn btn-success" onclick="saveSalary(${w.id})">💳 To'lov</button>
+    </div>`,'modal-md');
+}
+
+function saveSalary(wId){
+  const amount=parseFloat(document.getElementById('salAmount').value);
+  if(!amount||amount<=0){toast('Summa kiritilishi shart!','error');return;}
+  const users=DB.get('users');
+  const w=users.find(u=>u.id===wId);
+  if(!w)return;
+  if(amount>w.balance){toast('Balans yetarli emas!','error');return;}
+  w.balance-=amount;
+  DB.set('users',users);
+  const fin=DB.getObj('finance');
+  fin.balance-=amount;fin.totalExpense=(fin.totalExpense||0)+amount;
+  DB.setObj('finance',fin);
+  const tr=DB.get('transactions');
+  tr.push({id:nextId(tr),type:'expense',amount,desc:`Ish haqi: ${w.name}`,date:today()});
+  DB.set('transactions',tr);
+  closeModal('modalSalary');
+  toast(`✅ ${w.name}ga ${fmtMoney(amount)} to'landi`);
+  updateTopbarBalance();
+  renderWorkers();
+}
+
+// ================================================================
+//  SUHBATLAR SAHIFASI
+// ================================================================
+function renderChats(){
+  const chats=DB.get('chats');
+  document.getElementById('page-chats').innerHTML=`
+    <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+      <button class="btn btn-purple" onclick="openChatModal()">＋ Yangi Suhbat</button>
+    </div>
+    <div class="card">
+      <div class="card-header" style="padding-bottom:12px">
+        <div class="card-title">📞 Suhbatlar tarixi</div>
+      </div>
+      <div style="padding:16px 20px">
+      ${chats.length===0?`<div class="empty-state">
+        <div class="empty-icon">📞</div>
+        <div class="empty-title">Suhbatlar yo'q</div>
+        <div style="margin-top:12px"><button class="btn btn-purple" onclick="openChatModal()">＋ Yozish</button></div>
+        </div>`:`
+        <div style="display:flex;flex-direction:column;gap:10px">
+        ${chats.slice().reverse().map(c=>`
+          <div style="padding:14px;background:var(--card2);border-radius:12px;border-left:3px solid ${
+            c.type==='call'?'var(--green)':c.type==='telegram'?'var(--blue)':'var(--purple)'}">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+              <div style="font-weight:600">${c.clientName}</div>
+              <div style="font-size:11px;color:var(--text2)">${fmtDate(c.date)}</div>
+            </div>
+            <span class="tag">${c.type==='call'?'📞 Qo\'ng\'iroq':c.type==='telegram'?'✈️ Telegram':'💬 Boshqa'}</span>
+            <div style="margin-top:8px;font-size:13px;color:var(--text2)">${c.note}</div>
+          </div>`).join('')}
+        </div>`}
+      </div>
+    </div>`;
+}
+
+function openChatModal(){
+  const clients=DB.get('clients');
+  openModal('modalChat',`
+    <div class="modal-header"><div class="modal-title">📞 Suhbat Yozish</div>
+      <button class="modal-close" onclick="closeModal('modalChat')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Mijoz</label>
+        <select id="chatClient">
+          <option value="">— Tanlang —</option>
+          ${clients.map(c=>`<option value="${c.id}|||${c.name}">${c.name}</option>`).join('')}
+        </select></div>
+      <div class="form-group"><label>Tur</label>
+        <select id="chatType">
+          <option value="call">📞 Qo'ng'iroq</option>
+          <option value="telegram">✈️ Telegram</option>
+          <option value="other">💬 Boshqa</option>
+        </select></div>
+      <div class="form-group"><label>Izoh</label>
+        <textarea id="chatNote" rows="3" placeholder="Suhbat tafsiloti..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalChat')">Bekor</button>
+      <button class="btn btn-primary" style="width:auto" onclick="saveChat()">✅ Saqlash</button>
+    </div>`,'modal-md');
+}
+
+function saveChat(){
+  const cv=document.getElementById('chatClient').value;
+  const note=document.getElementById('chatNote').value.trim();
+  if(!cv||!note){toast('Mijoz va izoh kiritilishi shart!','error');return;}
+  const [cId,cName]=cv.split('|||');
+  const chats=DB.get('chats');
+  chats.push({id:nextId(chats),clientId:parseInt(cId),clientName:cName,
+    type:document.getElementById('chatType').value,note,date:now()});
+  DB.set('chats',chats);
+  closeModal('modalChat');
+  toast('✅ Suhbat saqlandi');
+  if(currentPage==='chats')renderChats();
+}
+
+// ================================================================
+//  ESLATMALAR SAHIFASI
+// ================================================================
+function renderReminders(){
+  const rems=DB.get('reminders');
+  document.getElementById('page-reminders').innerHTML=`
+    <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+      <button class="btn btn-purple" onclick="openReminderModal()">＋ Eslatma Qo'shish</button>
+    </div>
+    <div class="card">
+      <div class="card-header" style="padding-bottom:12px">
+        <div class="card-title">🔔 Eslatmalar</div>
+      </div>
+      <div style="padding:16px 20px">
+      ${rems.length===0?`<div class="empty-state"><div class="empty-icon">🔔</div>
+        <div class="empty-title">Eslatmalar yo'q</div></div>`:`
+        <div style="display:flex;flex-direction:column;gap:8px">
+        ${rems.map(r=>`
+          <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;
+            background:var(--card2);border-radius:10px;
+            ${r.done?'opacity:.5':''};border-left:3px solid ${r.priority==='high'?'var(--red)':r.priority==='medium'?'var(--yellow)':'var(--green)'}">
+            <div style="flex:1">
+              <div style="font-weight:500;${r.done?'text-decoration:line-through':''}">${r.text}</div>
+              <div style="font-size:11px;color:var(--text2);margin-top:3px">⏰ ${fmtDate(r.date)}</div>
+            </div>
+            <span class="badge ${r.priority==='high'?'b-overdue':r.priority==='medium'?'b-waiting':'b-done'}" style="font-size:10px">
+              ${r.priority==='high'?'Muhim':r.priority==='medium'?'O\'rta':'Past'}</span>
+            ${!r.done?`<button class="btn btn-sm btn-success" onclick="doneReminder(${r.id})">✓</button>`:'<span style="color:var(--green);font-size:12px">✅</span>'}
+            <button class="btn btn-sm btn-danger" onclick="deleteReminder(${r.id})">🗑</button>
+          </div>`).join('')}
+        </div>`}
+      </div>
+    </div>`;
+}
+
+function openReminderModal(){
+  openModal('modalReminder',`
+    <div class="modal-header"><div class="modal-title">🔔 Eslatma Qo'shish</div>
+      <button class="modal-close" onclick="closeModal('modalReminder')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Matn <span style="color:var(--red)">*</span></label>
+        <input id="remText" placeholder="Nima qilish kerak..."></div>
+      <div class="grid-2">
+        <div class="form-group"><label>Sana va vaqt</label>
+          <input type="datetime-local" id="remDate" value="${addDays(1)}"></div>
+        <div class="form-group"><label>Muhimlik</label>
+          <select id="remPrio">
+            <option value="high">🔴 Muhim</option>
+            <option value="medium">🟡 O'rta</option>
+            <option value="low">🟢 Past</option>
+          </select></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalReminder')">Bekor</button>
+      <button class="btn btn-primary" style="width:auto" onclick="saveReminder()">✅ Saqlash</button>
+    </div>`,'modal-md');
+}
+
+function saveReminder(){
+  const text=document.getElementById('remText').value.trim();
+  if(!text){toast('Matn kiritilishi shart!','error');return;}
+  const rems=DB.get('reminders');
+  rems.push({id:nextId(rems),text,date:document.getElementById('remDate').value,
+    priority:document.getElementById('remPrio').value,done:false});
+  DB.set('reminders',rems);
+  closeModal('modalReminder');
+  toast('✅ Eslatma qo\'shildi');
+  if(currentPage==='reminders')renderReminders();
+}
+
+function deleteReminder(id){
+  DB.set('reminders',DB.get('reminders').filter(r=>r.id!==id));
+  toast('O\'chirildi','info');
+  renderReminders();
+}
+
+// ================================================================
+//  ARXIV SAHIFASI
+// ================================================================
+function renderArchive(){
+  const archived=DB.get('orders').filter(o=>['delivered','cancelled'].includes(o.status)||o.archived);
+  document.getElementById('page-archive').innerHTML=`
+    <div class="card">
+      <div class="card-header" style="padding-bottom:12px">
+        <div class="card-title">📦 Arxiv</div>
+        <span style="font-size:13px;color:var(--text2)">Jami: <b>${archived.length}</b> ta</span>
+      </div>
+      <div class="table-wrap" style="border:none;border-radius:0">
+      ${archived.length===0?`<div class="empty-state">
+        <div class="empty-icon">📦</div><div class="empty-title">Arxiv bo'sh</div>
+        </div>`:`
+      <table><thead><tr>
+        <th>Raqam</th><th>Mijoz</th><th>Texnika</th><th>Holat</th>
+        <th>Narx</th><th>Usta</th><th>Sana</th>
+      </tr></thead><tbody>
+      ${archived.sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt)).map(o=>`<tr>
+        <td style="font-family:monospace;font-weight:700;color:var(--purple2)">${o.num}</td>
+        <td><div style="font-weight:600">${o.clientName}</div>
+          <div style="font-size:11px;color:var(--text2)">${o.clientPhone||''}</div></td>
+        <td style="font-size:12px">${[o.tvBrand,o.tvModel,o.tvDiagonal].filter(Boolean).join(' ')||'—'}</td>
+        <td><span class="badge ${STATUS_CLASS[o.status]}">${STATUS_ICON[o.status]} ${STATUS_LABEL[o.status]}</span></td>
+        <td class="money green-text">${fmtMoney(o.finalPrice||o.estimatedPrice)}</td>
+        <td style="font-size:12px">${o.masterName||'—'}</td>
+        <td style="font-size:12px;color:var(--text2)">${fmtDateOnly(o.updatedAt)}</td>
+      </tr>`).join('')}
+      </tbody></table>`}
+      </div>
+    </div>`;
+}
+
+// ================================================================
+//  FOYDALANUVCHILAR SAHIFASI
+// ================================================================
+function renderUsers(){
+  const users=DB.get('users');
+  document.getElementById('page-users').innerHTML=`
+    <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+      <button class="btn btn-purple" onclick="openNewWorkerModal()">＋ Yangi Foydalanuvchi</button>
+    </div>
+    <div class="card">
+      <div class="card-header" style="padding-bottom:12px">
+        <div class="card-title">⚙️ Foydalanuvchilar</div>
+      </div>
+      <div class="table-wrap" style="border:none;border-radius:0">
+      <table><thead><tr>
+        <th>Foydalanuvchi</th><th>Login</th><th>Rol</th><th>Telefon</th><th>Holat</th><th>Amallar</th>
+      </tr></thead><tbody>
+      ${users.map(u=>`<tr>
+        <td><div style="font-weight:600">${u.name}</div></td>
+        <td style="font-family:monospace;color:var(--text2)">@${u.username}</td>
+        <td><span class="badge ${u.role==='admin'?'b-admin':u.role==='master'?'b-master':'b-operator'}">
+          ${u.role==='admin'?'👑 Admin':u.role==='master'?'👷 Usta':'🖥 Operator'}</span></td>
+        <td style="font-size:13px">${u.phone||'—'}</td>
+        <td><span class="badge ${u.active?'b-done':'b-cancelled'}">${u.active?'✅ Faol':'🔒 Block'}</span></td>
+        <td><div class="td-actions">
+          <button class="btn btn-sm btn-ghost" onclick="editWorker(${u.id})">✏️</button>
+          ${u.id!==currentUser.id?`<button class="btn btn-sm ${u.active?'btn-danger':'btn-success'}" 
+            onclick="toggleWorker(${u.id})">${u.active?'🔒':'🔓'}</button>`:''}
+        </div></td>
+      </tr>`).join('')}
+      </tbody></table>
+      </div>
+    </div>`;
+}
+
+// ================================================================
+//  MODAL YORDAMCHI
+// ================================================================
+function openModal(id,content,size='modal-md'){
+  let overlay=document.getElementById('overlay_'+id);
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.className='modal-overlay';
+    overlay.id='overlay_'+id;
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML=`<div class="modal ${size}">${content}</div>`;
+  overlay.style.display='flex';
+  overlay.onclick=e=>{if(e.target===overlay)closeModal(id)};
+}
+
+function closeModal(id){
+  const el=document.getElementById('overlay_'+id);
+  if(el)el.style.display='none';
+}
+
+// ================================================================
+//  ISHGA TUSHIRISH
+// ================================================================
+initData();
+if(DB.get('chats').length===0)DB.set('chats',[]);
+checkSession();
+window.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    document.querySelectorAll('.modal-overlay').forEach(m=>m.style.display='none');
+  }
+});
+</script>
+</body>
+</html>
