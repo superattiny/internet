@@ -18,6 +18,7 @@ from app.api import auth      as auth_router
 from app.api import orders    as orders_router
 from app.api import workers   as workers_router
 from app.api import locations as locations_router
+from app.api import telegram  as telegram_router
 
 
 # ================================================================
@@ -39,6 +40,17 @@ async def lifespan(app: FastAPI):
     # Jadvallarni yaratish (agar mavjud bo'lmasa)
     await init_db()
     logger.info("✅ Ma'lumotlar bazasi tayyor")
+
+    # Telegram bot tekshiruvi
+    if settings.telegram_bot_token:
+        from app.integrations.telegram_bot import check_bot_info
+        bot = await check_bot_info()
+        if bot:
+            logger.info(f"✅ Telegram bot: @{bot.get('username')}")
+        else:
+            logger.warning("⚠️ Telegram bot token noto'g'ri!")
+    else:
+        logger.info("ℹ️ Telegram bot sozlanmagan (.env da token yo'q)")
 
     yield  # <-- Ilova shu yerda ishlaydi
 
@@ -103,6 +115,7 @@ app.include_router(auth_router.router,      prefix=API_V1)
 app.include_router(orders_router.router,    prefix=API_V1)
 app.include_router(workers_router.router,   prefix=API_V1)
 app.include_router(locations_router.router, prefix=API_V1)
+app.include_router(telegram_router.router,  prefix=API_V1)
 
 # 🔜 Keyingi bosqichlarda qo'shiladi:
 # from app.api import clients, warehouse, finance, archive
