@@ -2095,10 +2095,12 @@ function saveTransaction(type){
 // ================================================================
 function renderWorkers(){
   const allWorkers=DB.get('users').filter(u=>u.role!=='admin');
-  const totalBalance=allWorkers.reduce((s,w)=>s+(w.balance||0),0);
-  const totalDebt=allWorkers.reduce((s,w)=>s+(w.debt||0),0);
-  const masters=allWorkers.filter(w=>w.role==='master').length;
-  const operators=allWorkers.filter(w=>w.role==='operator').length;
+  const activeWorkers=allWorkers.filter(u=>!u.fired);
+  const firedWorkers=allWorkers.filter(u=>u.fired);
+  const totalBalance=activeWorkers.reduce((s,w)=>s+(w.balance||0),0);
+  const totalDebt=activeWorkers.reduce((s,w)=>s+(w.debt||0),0);
+  const masters=activeWorkers.filter(w=>w.role==='master').length;
+  const operators=activeWorkers.filter(w=>w.role==='operator').length;
 
   document.getElementById('page-workers').innerHTML=`
     <!-- STAT KARTALAR -->
@@ -2138,12 +2140,46 @@ function renderWorkers(){
     <div class="card">
       <div class="card-header" style="padding-bottom:12px">
         <div class="card-title">👨‍🔧 Ishchilar ro'yxati</div>
-        <span style="font-size:13px;color:var(--text2)">${allWorkers.length} ta ishchi</span>
+        <span style="font-size:13px;color:var(--text2)">${activeWorkers.length} ta faol ishchi</span>
       </div>
       <div class="table-wrap" style="border:none;border-radius:0" id="workersTableWrap">
-        ${buildWorkersTable(allWorkers)}
+        ${buildWorkersTable(activeWorkers)}
       </div>
-    </div>`;
+    </div>
+    ${firedWorkers.length>0?`
+    <div class="card" style="margin-top:18px">
+      <div class="card-header" style="padding-bottom:12px">
+        <div class="card-title" style="color:var(--red)">🚫 Ishdan haydangan ishchilar</div>
+        <span style="font-size:13px;color:var(--text2)">${firedWorkers.length} ta</span>
+      </div>
+      <div class="table-wrap" style="border:none;border-radius:0">
+      <table><thead><tr>
+        <th>Ishchi</th><th>Lavozimi</th><th>Sabab</th>
+        <th>Kim haydi</th><th>Sana</th><th>Balans</th><th>Amal</th>
+      </tr></thead><tbody>
+      ${firedWorkers.map(w=>`<tr style="opacity:.75">
+        <td>
+          <div style="display:flex;align-items:center;gap:9px">
+            <div style="width:32px;height:32px;border-radius:50%;background:#374151;
+              display:flex;align-items:center;justify-content:center;
+              font-size:13px;font-weight:700;color:var(--text2);flex-shrink:0">${w.name[0]}</div>
+            <div>
+              <div style="font-weight:600;font-size:13px">${w.name}</div>
+              <div style="font-size:11px;color:var(--text2)">@${w.username}</div>
+            </div>
+          </div>
+        </td>
+        <td><span class="badge ${w.role==='master'?'b-master':'b-operator'}">
+          ${w.role==='master'?'👷 Usta':'🖥 Operator'}</span></td>
+        <td style="font-size:12px;max-width:180px;color:var(--red)">${w.fireReason||'—'}</td>
+        <td style="font-size:12px;color:var(--text2)">${w.firedBy||'—'}</td>
+        <td style="font-size:12px;color:var(--text2)">${fmtDateOnly(w.fireDate)||'—'}</td>
+        <td class="money" style="color:var(--text2)">${fmtMoney(w.balance||0)}</td>
+        <td><button class="btn btn-sm btn-success" onclick="toggleWorker(${w.id})">🔓 Qayta</button></td>
+      </tr>`).join('')}
+      </tbody></table>
+      </div>
+    </div>`:''}`;
 }
 
 function buildWorkersTable(workers){
@@ -2201,10 +2237,12 @@ function buildWorkersTable(workers){
           title="Qarz belgilash">💸</button>
         <button class="btn btn-sm btn-ghost" onclick="editWorker(${w.id})"
           title="Tahrirlash">✏️</button>
+        ${w.id!==currentUser.id?`
         <button class="btn btn-sm ${w.active?'btn-danger':'btn-success'}"
           onclick="toggleWorker(${w.id})"
-          title="${w.active?'Bloklash':'Faollashtirish'}">
-          ${w.active?'🗑️':'🔓'}</button>
+          title="${w.active?'Ishdan haydash':'Qayta ishga olish'}">
+          ${w.active?'🚫 Haydash':'🔓 Qayta olish'}
+        </button>`:''}
       </div>
     </td>
   </tr>`).join('')}
@@ -2212,7 +2250,7 @@ function buildWorkersTable(workers){
 }
 
 function filterWorkers(q){
-  const all=DB.get('users').filter(u=>u.role!=='admin');
+  const all=DB.get('users').filter(u=>u.role!=='admin'&&!u.fired);
   const filtered=q?all.filter(w=>
     w.name.toLowerCase().includes(q.toLowerCase())||
     (w.phone||'').includes(q)||
@@ -2301,6 +2339,9 @@ function saveNewWorker(){
   closeModal('modalNewWorker');
   toast('✅ Ishchi qo\'shildi');
   renderWorkers();
+  // Buyurtma formasida ishchilar ro'yxatini yangilash (agar ochiq bo'lsa)
+  const orderMasterDiv = document.querySelector('#modalNewOrder .modal-body [name="orderMasters"]');
+  if(orderMasterDiv) openNewOrderModal(); // Formani qayta ochish o'rniga yopish
 }
 
 function editWorker(id){
@@ -2345,9 +2386,95 @@ function toggleWorker(id){
   const w=users.find(u=>u.id===id);
   if(!w)return;
   if(w.id===currentUser.id){toast("O'zingizni bloklay olmaysiz!",'error');return;}
-  w.active=!w.active;
+  if(w.active){
+    // Bloklash — to'liq haydash emas
+    openFireWorkerModal(id);
+  } else {
+    // Qayta ishga olish
+    w.active=true;
+    w.fired=false;
+    w.fireReason='';
+    w.fireDate='';
+    DB.set('users',users);
+    toast('✅ Ishchi qayta faollashtirildi');
+    renderWorkers();
+  }
+}
+
+function openFireWorkerModal(id){
+  const w=DB.get('users').find(u=>u.id===id);
+  if(!w)return;
+  openModal('modalFire',`
+    <div class="modal-header">
+      <div class="modal-title">🚫 Ishdan haydash — ${w.name}</div>
+      <button class="modal-close" onclick="closeModal('modalFire')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="text-align:center;padding:10px 0 16px">
+        <div style="font-size:44px;margin-bottom:10px">🚫</div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:6px">${w.name}</div>
+        <div style="font-size:13px;color:var(--text2)">@${w.username} · ${w.role==='master'?'Usta':'Operator'}</div>
+      </div>
+      <div style="background:var(--card2);padding:12px;border-radius:10px;margin-bottom:14px;font-size:13px">
+        <div>💰 Joriy balans: <b style="color:var(--green)">${fmtMoney(w.balance||0)}</b></div>
+        <div style="margin-top:4px;color:var(--text2)">
+          ⚠️ Ishdan haydalgandan keyin balans o'zgarmaydi. Avval ish haqi to'lang!
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Ishdan haydash sababi <span style="color:var(--red)">*</span></label>
+        <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:10px">
+          ${[
+            {val:'sifat',    label:'👎 Ish sifati past'},
+            {val:'intizom',  label:'⏰ Intizom buzilishi'},
+            {val:'ishtan',   label:'✋ O\'zi ishtaxoni bilan ketdi'},
+            {val:'qisqarish',label:'📉 Shtat qisqarishi'},
+            {val:'boshqa',   label:'📝 Boshqa sabab'},
+          ].map(s=>`
+          <label style="display:flex;align-items:center;gap:9px;padding:9px 12px;
+            border:1.5px solid var(--border);border-radius:8px;cursor:pointer"
+            onclick="this.style.borderColor='var(--red)';
+              document.querySelectorAll('[name=fireSabab]').forEach(r=>r.closest('label').style.borderColor='var(--border)');
+              this.style.borderColor='var(--red)'">
+            <input type="radio" name="fireSabab" value="${s.val}" style="accent-color:var(--red)">
+            <span style="font-size:13px;font-weight:500">${s.label}</span>
+          </label>`).join('')}
+        </div>
+        <textarea id="fireIzoh" rows="2" placeholder="Qo'shimcha izoh..."
+          style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;
+          background:var(--card2);color:var(--text);font-size:13px;outline:none;
+          font-family:inherit;resize:vertical"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalFire')">Bekor</button>
+      <button class="btn btn-danger" onclick="confirmFire(${id})">🚫 Ishdan haydash</button>
+    </div>
+  `,'modal-md');
+}
+
+function confirmFire(id){
+  const sabab = document.querySelector('input[name="fireSabab"]:checked')?.value;
+  const SABAB = {
+    sifat:'Ish sifati past', intizom:'Intizom buzilishi',
+    ishtan:"O'zi ishtaxoni bilan ketdi", qisqarish:'Shtat qisqarishi', boshqa:'Boshqa'
+  };
+  const izoh = document.getElementById('fireIzoh').value.trim();
+  if(!sabab){toast('Sabab tanlang!','error');return;}
+
+  const users=DB.get('users');
+  const w=users.find(u=>u.id===id);
+  if(!w)return;
+
+  w.active=false;
+  w.fired=true;
+  w.fireReason=(SABAB[sabab]||sabab)+(izoh?' — '+izoh:'');
+  w.fireDate=today();
+  w.firedBy=currentUser.name;
   DB.set('users',users);
-  toast(w.active?'✅ Faollashtirildi':'🔒 Bloklandi');
+
+  closeModal('modalFire');
+  toast(`🚫 ${w.name} ishdan haydaldi`,'info');
   renderWorkers();
 }
 
