@@ -2199,6 +2199,8 @@ function renderWorkers(){
 }
 
 function buildWorkersTable(workers){
+  // Faqat bo'shatilmaganlarni ko'rsatamiz — bo'shatilganlar arxivda
+  workers = workers.filter(w => !w.fired);
   if(workers.length===0)return`<div class="empty-state">
     <div class="empty-icon">👷</div>
     <div class="empty-title">Ishchilar yo'q</div>
@@ -2915,7 +2917,8 @@ function renderArchive(){
 //  FOYDALANUVCHILAR SAHIFASI
 // ================================================================
 function renderUsers(){
-  const users=DB.get('users');
+  // Bo'shatilganlar ko'rinmasin — ular arxivda
+  const users=DB.get('users').filter(u=>!u.fired);
   document.getElementById('page-users').innerHTML=`
     <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
       <button class="btn btn-purple" onclick="openNewWorkerModal()">＋ Yangi Foydalanuvchi</button>
@@ -3034,7 +3037,8 @@ setInterval(renderCalendar, 60000);
 //  USTALAR RO'YXATI SAHIFASI
 // ================================================================
 function renderUstalar(){
-  const masters=DB.get('users').filter(u=>u.role==='master');
+  // Faqat faol (bo'shatilmagan) ustalar
+  const masters=DB.get('users').filter(u=>u.role==='master' && !u.fired);
   const orders=DB.get('orders');
 
   document.getElementById('page-ustalar').innerHTML=`
