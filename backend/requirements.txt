@@ -4,17 +4,17 @@
 # ================================================
 
 # --- Web Framework ---
-fastapi==0.111.0
-uvicorn[standard]==0.29.0
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
 
 # --- Ma'lumotlar bazasi ---
-sqlalchemy==2.0.30
+sqlalchemy==2.0.36
 aiosqlite==0.20.0          # Async SQLite uchun
-alembic==1.13.1            # Migratsiyalar uchun
+alembic==1.14.0            # Migratsiyalar uchun
 
 # --- Ma'lumot validatsiyasi ---
-pydantic==2.7.1
-pydantic-settings==2.2.1   # .env o'qish uchun
+pydantic==2.10.6
+pydantic-settings==2.7.0   # .env o'qish uchun
 
 # --- Autentifikatsiya ---
 python-jose[cryptography]==3.3.0   # JWT tokenlar

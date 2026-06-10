@@ -72,12 +72,13 @@ except Exception as e:
 # 3. Virtual muhit
 header("Backend o'rnatilmoqda")
 venv_dir = os.path.join(BACKEND, 'venv')
-if not os.path.exists(venv_dir):
-    info("Virtual muhit yaratilmoqda...")
-    subprocess.run([sys.executable, '-m', 'venv', venv_dir], check=True)
-    ok("Virtual muhit yaratildi")
-else:
-    ok("Virtual muhit mavjud")
+# Eski venv ni o'chirish (agar noto'g'ri Python versiyasi bo'lsa)
+if os.path.exists(venv_dir):
+    info("Eski virtual muhit o'chirilmoqda...")
+    shutil.rmtree(venv_dir)
+info("Virtual muhit yaratilmoqda...")
+subprocess.run([sys.executable, '-m', 'venv', venv_dir], check=True)
+ok("Virtual muhit yaratildi")
 
 pip_path    = os.path.join(venv_dir, 'Scripts', 'pip.exe')
 python_path = os.path.join(venv_dir, 'Scripts', 'python.exe')
