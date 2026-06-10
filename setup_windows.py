@@ -32,13 +32,41 @@ ok(f"Python {ver.major}.{ver.minor}.{ver.micro}")
 
 # 2. Node.js
 header("Node.js tekshiruvi")
-try:
-    node = subprocess.run(['node','--version'], capture_output=True, text=True)
-    npm  = subprocess.run(['npm','--version'],  capture_output=True, text=True)
-    ok(f"Node.js {node.stdout.strip()}")
-    ok(f"npm {npm.stdout.strip()}")
-except FileNotFoundError:
+
+# Node.js ni turli joylarda qidirish
+NODE_PATHS = [
+    r"C:\Program Files\nodejs",
+    r"C:\Program Files (x86)\nodejs",
+    os.path.expanduser(r"~\AppData\Roaming\nvm\current"),
+]
+node_exe = None
+npm_exe  = None
+
+for p in NODE_PATHS:
+    if os.path.exists(os.path.join(p, 'node.exe')):
+        node_exe = os.path.join(p, 'node.exe')
+        npm_exe  = os.path.join(p, 'npm.cmd')
+        os.environ['PATH'] = p + os.pathsep + os.environ.get('PATH','')
+        break
+
+if not node_exe:
+    # PATH dan ham qidirish
+    node_exe = shutil.which('node')
+    npm_exe  = shutil.which('npm')
+
+if not node_exe:
     error("Node.js topilmadi! https://nodejs.org dan o'rnating")
+    sys.exit(1)
+
+try:
+    node_ver = subprocess.run([node_exe,'--version'], capture_output=True, text=True)
+    npm_ver  = subprocess.run([npm_exe,'--version'],  capture_output=True, text=True)
+    ok(f"Node.js {node_ver.stdout.strip()} — {node_exe}")
+    ok(f"npm {npm_ver.stdout.strip()}")
+    NODE_CMD = node_exe
+    NPM_CMD  = npm_exe
+except Exception as e:
+    error(f"Node.js xato: {e}")
     sys.exit(1)
 
 # 3. Virtual muhit
@@ -79,17 +107,19 @@ else:
 
 # 7. Frontend
 header("Frontend o'rnatilmoqda")
-subprocess.run(['npm', 'install', '--silent'], cwd=FRONTEND, check=True)
+subprocess.run([NPM_CMD, 'install', '--silent'], cwd=FRONTEND, check=True)
 ok("npm paketlari o'rnatildi")
 
 # 8. .bat fayllar yaratish
 header("Ishga tushirish fayllar yaratilmoqda")
+node_dir = os.path.dirname(node_exe)
 
 with open(os.path.join(BASE_DIR,'START_CRM.bat'),'w') as f:
     f.write(f'@echo off\ntitle TV CRM\n')
+    f.write(f'set PATH={node_dir};%PATH%\n')
     f.write(f'start "Backend"  cmd /k "cd /d {BACKEND} && venv\\Scripts\\activate && python run.py"\n')
     f.write(f'timeout /t 4 /nobreak >nul\n')
-    f.write(f'start "Frontend" cmd /k "cd /d {FRONTEND} && npm run dev"\n')
+    f.write(f'start "Frontend" cmd /k "cd /d {FRONTEND} && set PATH={node_dir};%PATH% && npm run dev"\n')
     f.write(f'timeout /t 6 /nobreak >nul\n')
     f.write(f'start http://localhost:5173\n')
     f.write(f'echo CRM ishga tushdi! http://localhost:5173\npause\n')
