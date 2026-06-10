@@ -9,6 +9,7 @@ import MainLayout from '@/components/Layout/MainLayout';
 import Login      from '@/pages/Login';
 import Dashboard  from '@/pages/Dashboard';
 import Orders     from '@/pages/Orders';
+import Workers    from '@/pages/Workers';
 
 // ── Placeholder sahifalar (keyingi bosqichlar uchun) ─────────────
 function ComingSoon({ title, icon }) {
@@ -113,7 +114,7 @@ export default function App() {
           path="/workers"
           element={
             <ProtectedRoute>
-              <ComingSoon title="Ishchilar" icon="👷" />
+              <Workers />
             </ProtectedRoute>
           }
         />
