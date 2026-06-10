@@ -789,9 +789,33 @@ function renderOrdersTable(){
       <td style="font-size:12px">${o.masterName||'<span style="color:var(--text2)">—</span>'}</td>
       <td onclick="event.stopPropagation()">
         <div class="td-actions">
-          ${!['delivered','cancelled'].includes(o.status)?`
-            <button class="btn btn-sm btn-blue" onclick="openStatusModal(${o.id})" title="Holat">🔄</button>`:
-            `<button class="btn btn-sm btn-ghost" onclick="archiveOrder(${o.id})" title="Arxiv">📦</button>`}
+
+          ${/* YAKUNLASH tugmasi — faqat done holatida */
+          o.status==='done'?`
+            <button class="btn btn-sm btn-success" 
+              onclick="openYakunlashModal(${o.id})" 
+              title="Buyurtmani yakunlash"
+              style="font-weight:700;background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none">
+              🏁 Yakunlash
+            </button>`:
+
+          /* IN_REPAIR — ta'mirda tugmasi */
+          o.status==='in_repair'?`
+            <button class="btn btn-sm btn-success"
+              onclick="markAsDone(${o.id})"
+              title="Ta'mir tugadi — tayyor deb belgilash"
+              style="background:#dcfce7;color:#16a34a;border:1px solid #bbf7d0">
+              ✔️ Tayyor
+            </button>
+            <button class="btn btn-sm btn-blue" onclick="openStatusModal(${o.id})" title="Holat o'zgartirish">🔄</button>`:
+
+          /* Boshqa aktiv holatlar */
+          !['delivered','cancelled'].includes(o.status)?`
+            <button class="btn btn-sm btn-blue" onclick="openStatusModal(${o.id})" title="Holat o'zgartirish">🔄</button>`:
+
+          /* Yakunlangan — arxiv */
+          `<button class="btn btn-sm btn-ghost" onclick="archiveOrder(${o.id})" title="Arxivlash">📦</button>`}
+
           <button class="btn btn-sm btn-ghost" onclick="openOrderDetail(${o.id})" title="Ko'rish">👁</button>
         </div>
       </td>
@@ -1503,6 +1527,22 @@ function savePayment(orderId){
   closeModal('modalPayQuick');
   toast(`✅ To'lov qabul qilindi: ${fmtMoney(amount)}`);
   refreshAll();
+}
+
+// Ta'mirda → Tayyor (bir tugma bilan)
+function markAsDone(id){
+  const orders=DB.get('orders');
+  const o=orders.find(x=>x.id===id);
+  if(!o)return;
+  o.status='done';
+  o.updatedAt=today();
+  o.history=o.history||[];
+  o.history.push({status:'done',comment:"Ta'mir tugadi, yakunlash kutilmoqda",by:currentUser.name,date:now()});
+  DB.set('orders',orders);
+  toast('✔️ Tayyor! Endi "Yakunlash" tugmasini bosing');
+  refreshAll();
+  if(currentPage==='orders')renderOrders();
+  if(currentPage==='dashboard')renderDashboard();
 }
 
 function archiveOrder(id){
