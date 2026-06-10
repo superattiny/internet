@@ -1218,19 +1218,54 @@ function openYakunlashModal(id){
         </label>
       </div>
 
-      <!-- TUZATILDI: To'lov qismi -->
+      <!-- TUZATILDI: To'lov qismi — 3 ta maydon + tekshiruv -->
       <div id="qism_tuzatildi" style="display:none">
         <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin-bottom:12px">
-          💳 To'lov ma'lumotlari
+          💳 To'lov tafsilotlari
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">
-          <div class="form-group">
-            <label>To'lov summasi (so'm) <span style="color:var(--red)">*</span></label>
-            <input type="number" id="yakunSumma" placeholder="250000" min="0"
-              value="${o.estimatedPrice||''}"
-              style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;
-              background:var(--card2);color:var(--text);font-size:14px;outline:none;font-family:inherit">
+
+        <div class="form-group">
+          <label>Umumiy kirim — mijoz to'lagan summa <span style="color:var(--red)">*</span></label>
+          <input type="number" id="yakunSumma" placeholder="250000" min="0"
+            value="${o.estimatedPrice||''}"
+            oninput="checkYakunSum()"
+            style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;
+            background:var(--card2);color:var(--text);font-size:16px;font-weight:700;outline:none;font-family:inherit">
+        </div>
+
+        <div style="background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.25);
+          border-radius:10px;padding:14px;margin-bottom:14px">
+          <div style="font-size:12px;color:var(--text2);margin-bottom:10px;font-weight:600">
+            💡 Uch qismning yig'indisi umumiy kirimga teng bo'lishi shart
           </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:5px">📈 FOYDA</div>
+              <input type="number" id="yakunFoyda" placeholder="0" min="0"
+                oninput="checkYakunSum()"
+                style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:7px;
+                background:var(--card2);color:var(--text);font-size:13px;outline:none;font-family:inherit;box-sizing:border-box">
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--yellow);margin-bottom:5px">🚗 YO'LKIRA</div>
+              <input type="number" id="yakunYolkira" placeholder="0" min="0"
+                oninput="checkYakunSum()"
+                style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:7px;
+                background:var(--card2);color:var(--text);font-size:13px;outline:none;font-family:inherit;box-sizing:border-box">
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--blue);margin-bottom:5px">🔩 ZAPCHAST</div>
+              <input type="number" id="yakunZapchast" placeholder="0" min="0"
+                oninput="checkYakunSum()"
+                style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:7px;
+                background:var(--card2);color:var(--text);font-size:13px;outline:none;font-family:inherit;box-sizing:border-box">
+            </div>
+          </div>
+          <div id="yakunSumCheck" style="margin-top:10px;padding:8px 12px;border-radius:8px;
+            font-size:12.5px;font-weight:600;display:none"></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">
           <div class="form-group">
             <label>To'lov usuli</label>
             <select id="yakunPayMethod" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);
@@ -1240,12 +1275,12 @@ function openYakunlashModal(id){
               <option value="transfer">🏦 Bank o'tkazmasi</option>
             </select>
           </div>
-        </div>
-        <div class="form-group">
-          <label>Izoh (ixtiyoriy)</label>
-          <input id="yakunIzoh" placeholder="Mijoz mamnun, to'liq to'ladi..."
-            style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;
-            background:var(--card2);color:var(--text);font-size:14px;outline:none;font-family:inherit">
+          <div class="form-group">
+            <label>Izoh</label>
+            <input id="yakunIzoh" placeholder="Qo'shimcha..."
+              style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;
+              background:var(--card2);color:var(--text);font-size:14px;outline:none;font-family:inherit">
+          </div>
         </div>
       </div>
 
@@ -1314,11 +1349,43 @@ function selectYakunNatija(natija){
 }
 
 function selectTuzatilmadiSabab(val){
-  // Sabab labellarini yangilash
   ['qimmat','ehtiyot','murakkab','mijoz','boshqa'].forEach(s=>{
     const el=document.getElementById('lbl_sabab_'+s);
     if(el) el.style.borderColor=s===val?'var(--red)':'var(--border)';
   });
+}
+
+// Yig'indi tekshiruvi — real vaqtda
+function checkYakunSum(){
+  const summa   = parseFloat(document.getElementById('yakunSumma')?.value)||0;
+  const foyda   = parseFloat(document.getElementById('yakunFoyda')?.value)||0;
+  const yolkira = parseFloat(document.getElementById('yakunYolkira')?.value)||0;
+  const zapchast= parseFloat(document.getElementById('yakunZapchast')?.value)||0;
+  const jami    = foyda + yolkira + zapchast;
+  const el      = document.getElementById('yakunSumCheck');
+  const btn     = document.getElementById('btnYakunSaqlash');
+  if(!el)return;
+
+  if(foyda===0 && yolkira===0 && zapchast===0){
+    el.style.display='none'; return;
+  }
+
+  el.style.display='block';
+
+  if(jami===summa){
+    el.style.background='rgba(16,185,129,.15)';
+    el.style.color='var(--green)';
+    el.style.border='1px solid rgba(16,185,129,.3)';
+    el.innerHTML=`✅ To'g'ri! Foyda: <b>${fmtMoney(foyda)}</b> + Yo'lkira: <b>${fmtMoney(yolkira)}</b> + Zapchast: <b>${fmtMoney(zapchast)}</b> = <b>${fmtMoney(jami)}</b>`;
+    if(btn){btn.disabled=false;btn.style.opacity='1';btn.style.cursor='pointer';}
+  } else {
+    const farq = jami - summa;
+    el.style.background='rgba(239,68,68,.12)';
+    el.style.color='var(--red)';
+    el.style.border='1px solid rgba(239,68,68,.3)';
+    el.innerHTML=`❌ Yig'indi: <b>${fmtMoney(jami)}</b> — Kirimdan ${farq>0?'<b>'+fmtMoney(farq)+'</b> ko\'p':'<b>'+fmtMoney(Math.abs(farq))+'</b> kam'}. Tuzating!`;
+    if(btn){btn.disabled=true;btn.style.opacity='0.5';btn.style.cursor='not-allowed';}
+  }
 }
 
 function saveYakunlash(orderId){
@@ -1330,65 +1397,57 @@ function saveYakunlash(orderId){
   if(!o)return;
 
   if(natija==='tuzatildi'){
-    // ── Tuzatildi ────────────────────────────────────────
-    const summa=parseFloat(document.getElementById('yakunSumma').value);
-    if(!summa||summa<=0){toast("To'lov summasi kiritilishi shart!",'error');return;}
+    // ── Tuzatildi: 3 ta maydonni tekshirish ──────────────
+    const summa    = parseFloat(document.getElementById('yakunSumma').value)||0;
+    const foyda    = parseFloat(document.getElementById('yakunFoyda').value)||0;
+    const yolkira  = parseFloat(document.getElementById('yakunYolkira').value)||0;
+    const zapchast = parseFloat(document.getElementById('yakunZapchast').value)||0;
+    const method   = document.getElementById('yakunPayMethod').value;
+    const izoh     = document.getElementById('yakunIzoh').value.trim();
 
-    const method=document.getElementById('yakunPayMethod').value;
-    const izoh=document.getElementById('yakunIzoh').value.trim();
+    if(!summa||summa<=0){toast("Umumiy kirim summasi kiritilishi shart!",'error');return;}
 
+    // Yig'indi tekshiruvi
+    const jami = foyda + yolkira + zapchast;
+    if((foyda||yolkira||zapchast) && jami !== summa){
+      toast(`❌ Yig'indi (${fmtMoney(jami)}) kirimga (${fmtMoney(summa)}) teng emas!`,'error');
+      return;
+    }
+
+    // ── "Qabul kutilmoqda" holati saqlaymiz ──────────────
+    // Pul balansga TUSHMAYDI — faqat ko'rinib turadi
     o.status='delivered';
     o.finalPrice=summa;
-    o.isPaid=true;
+    o.foyda=foyda;
+    o.yolkira=yolkira;
+    o.zapchast=zapchast;
     o.payMethod=method;
+    o.isPaid=false;          // ← Hali qabul qilinmagan!
+    o.qabulKutilmoqda=true;  // ← "Qabul kutilmoqda" belgisi
     o.updatedAt=today();
     o.archived=true;
     o.history=o.history||[];
     o.history.push({
       status:'delivered',
-      comment:`✅ Tuzatildi. To'lov: ${fmtMoney(summa)} (${method==='cash'?'Naqd':method==='card'?'Karta':"O'tkazma"})${izoh?' — '+izoh:''}`,
+      comment:`✅ Tuzatildi. Kirim: ${fmtMoney(summa)} | Foyda: ${fmtMoney(foyda)} | Yo'lkira: ${fmtMoney(yolkira)} | Zapchast: ${fmtMoney(zapchast)}${izoh?' — '+izoh:''}`,
       by:currentUser.name, date:now()
     });
 
-    // Ustaga komisyon hisoblash
-    if(o.masterId){
-      const users=DB.get('users');
-      const master=users.find(u=>u.id===o.masterId);
-      if(master&&(master.commission||0)>0){
-        const komissyon=Math.round(summa*master.commission/100);
-        master.balance=(master.balance||0)+komissyon;
-        DB.set('users',users);
-        toast(`💰 ${master.name}ga komisyon: ${fmtMoney(komissyon)}`,'info');
-      }
-    }
-
-    // Kassaga kirim
-    const fin=DB.getObj('finance');
-    fin.balance=(fin.balance||0)+summa;
-    fin.totalIncome=(fin.totalIncome||0)+summa;
-    DB.setObj('finance',fin);
-
-    // Tranzaksiya
-    const tr=DB.get('transactions');
-    tr.push({id:nextId(tr),type:'income',amount:summa,
-      desc:`Buyurtma to'lovi: ${o.num} — ${o.clientName}`,date:today(),orderId});
-    DB.set('transactions',tr);
-
-    // Mijoz statistika
-    const clients=DB.get('clients');
-    const cl=clients.find(c=>c.id===o.clientId);
-    if(cl){cl.totalSpent=(cl.totalSpent||0)+summa;DB.set('clients',clients);}
-
     DB.set('orders',orders);
     closeModal('modalYakunlash');
-    toast(`🎉 Buyurtma yakunlandi! To'lov: ${fmtMoney(summa)}`);
+
+    // "Qabul kutilmoqda" — admin tasdiqlashi kerak
+    setTimeout(()=>openQabulModal(orderId), 300);
 
   } else {
     // ── Tuzatilmadi ──────────────────────────────────────
     const sabab=document.querySelector('input[name="tuzatilmadiSabab"]:checked')?.value;
     const SABAB_LABEL={
-      qimmat:'Narxi qimmat',ehtiyot:"Ehtiyot qism yo'q",
-      murakkab:'Juda murakkab',mijoz:'Mijoz olib ketdi',boshqa:'Boshqa'
+      qimmat:'Narxi qimmat',
+      ehtiyot:"Ehtiyot qism yo'q",
+      murakkab:'Juda murakkab',
+      mijoz:'Mijoz olib ketdi',
+      boshqa:'Boshqa'
     };
     const izoh=document.getElementById('tuzatilmadiIzoh').value.trim();
     const cancelText=sabab?SABAB_LABEL[sabab]:'Sabab ko\'rsatilmadi';
@@ -1409,6 +1468,123 @@ function saveYakunlash(orderId){
     toast(`📦 Buyurtma yopildi: ${cancelText}`,'info');
   }
 
+  refreshAll();
+  if(currentPage==='orders')renderOrders();
+  if(currentPage==='dashboard')renderDashboard();
+}
+
+// ── Qabul qilish modali (admin tasdiqlaydi) ──────────────────
+function openQabulModal(orderId){
+  const o=DB.get('orders').find(x=>x.id===orderId);
+  if(!o)return;
+  const methodLabel={cash:'💵 Naqd',card:'💳 Karta',transfer:"🏦 O'tkazma"};
+
+  openModal('modalQabul',`
+    <div class="modal-header">
+      <div class="modal-title">💰 To'lovni Qabul Qilish — ${o.num}</div>
+      <button class="modal-close" onclick="closeModal('modalQabul')">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Mijoz -->
+      <div style="background:var(--card2);padding:12px 14px;border-radius:10px;margin-bottom:16px">
+        <div style="font-weight:600">${o.clientName}</div>
+        <div style="font-size:12px;color:var(--text2)">${o.clientPhone||''}</div>
+      </div>
+
+      <!-- Moliyaviy taqsimlash -->
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;
+        letter-spacing:.06em;color:var(--text2);margin-bottom:10px">To'lov tafsiloti</div>
+
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;padding:10px 14px;
+          background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:8px">
+          <span style="font-weight:600;color:var(--green)">📈 Foyda</span>
+          <span class="money" style="font-weight:800;color:var(--green)">${fmtMoney(o.foyda||0)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:10px 14px;
+          background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px">
+          <span style="font-weight:600;color:var(--yellow)">🚗 Yo'lkira</span>
+          <span class="money" style="font-weight:800;color:var(--yellow)">${fmtMoney(o.yolkira||0)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:10px 14px;
+          background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:8px">
+          <span style="font-weight:600;color:var(--blue)">🔩 Zapchast xarajati</span>
+          <span class="money" style="font-weight:800;color:var(--blue)">${fmtMoney(o.zapchast||0)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:12px 14px;
+          background:rgba(124,58,237,.15);border:2px solid rgba(124,58,237,.4);border-radius:8px">
+          <span style="font-weight:700;color:var(--purple2)">💰 Jami kirim</span>
+          <span class="money" style="font-weight:800;font-size:16px;color:var(--purple2)">${fmtMoney(o.finalPrice||0)}</span>
+        </div>
+      </div>
+
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px">
+        To'lov usuli: <b style="color:var(--text)">${methodLabel[o.payMethod]||o.payMethod||'—'}</b>
+      </div>
+
+      <div style="padding:10px 14px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);
+        border-radius:8px;font-size:13px;color:var(--yellow)">
+        ⚠️ Tasdiqlashdan keyin pul balansga qo'shiladi va arxivga tushadi.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalQabul')">Keyinroq</button>
+      <button class="btn btn-success" onclick="confirmQabul(${orderId})">
+        ✅ Qabul qilish
+      </button>
+    </div>
+  `,'modal-md');
+}
+
+function confirmQabul(orderId){
+  const orders=DB.get('orders');
+  const o=orders.find(x=>x.id===orderId);
+  if(!o)return;
+
+  // Endi pul balansga tushadi
+  o.isPaid=true;
+  o.qabulKutilmoqda=false;
+  o.updatedAt=today();
+  o.history=o.history||[];
+  o.history.push({
+    status:'delivered',
+    comment:`💰 To'lov qabul qilindi: ${fmtMoney(o.finalPrice)}`,
+    by:currentUser.name, date:now()
+  });
+  DB.set('orders',orders);
+
+  // Ustaga komisyon
+  if(o.masterId && o.foyda > 0){
+    const users=DB.get('users');
+    const master=users.find(u=>u.id===o.masterId);
+    if(master && (master.commission||0)>0){
+      const kom=Math.round(o.foyda * master.commission/100);
+      master.balance=(master.balance||0)+kom;
+      DB.set('users',users);
+      toast(`💰 ${master.name}ga komisyon: ${fmtMoney(kom)} (${master.commission}% × foyda)`,'info');
+    }
+  }
+
+  // Balansga faqat foyda qo'shiladi (yolkira va zapchast xarajat)
+  const fin=DB.getObj('finance');
+  fin.balance=(fin.balance||0)+(o.finalPrice||0);
+  fin.totalIncome=(fin.totalIncome||0)+(o.finalPrice||0);
+  DB.setObj('finance',fin);
+
+  // Tranzaksiyalar: har biri alohida
+  const tr=DB.get('transactions');
+  if(o.foyda>0)    tr.push({id:nextId(tr),type:'income', amount:o.foyda,    desc:`📈 Foyda: ${o.num}`,    date:today(),orderId});
+  if(o.yolkira>0)  tr.push({id:nextId(tr),type:'expense',amount:o.yolkira,  desc:`🚗 Yo'lkira: ${o.num}`, date:today(),orderId});
+  if(o.zapchast>0) tr.push({id:nextId(tr),type:'expense',amount:o.zapchast, desc:`🔩 Zapchast: ${o.num}`, date:today(),orderId});
+  DB.set('transactions',tr);
+
+  // Mijoz statistika
+  const clients=DB.get('clients');
+  const cl=clients.find(c=>c.id===o.clientId);
+  if(cl){cl.totalSpent=(cl.totalSpent||0)+(o.finalPrice||0);DB.set('clients',clients);}
+
+  closeModal('modalQabul');
+  toast(`🎉 To'lov qabul qilindi! ${fmtMoney(o.finalPrice)}`);
   refreshAll();
   if(currentPage==='orders')renderOrders();
   if(currentPage==='dashboard')renderDashboard();
@@ -2340,7 +2516,28 @@ function deleteReminder(id){
 // ================================================================
 function renderArchive(){
   const archived=DB.get('orders').filter(o=>['delivered','cancelled'].includes(o.status)||o.archived);
+  // "Qabul kutilmoqda" buyurtmalar
+  const qabulKutilmoqda=archived.filter(o=>o.qabulKutilmoqda&&!o.isPaid&&o.status==='delivered');
+
   document.getElementById('page-archive').innerHTML=`
+    ${qabulKutilmoqda.length>0?`
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 18px;
+      background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);
+      border-radius:12px;margin-bottom:16px;cursor:pointer"
+      onclick="">
+      <div style="width:10px;height:10px;background:var(--yellow);border-radius:50%;
+        animation:pulse-dot 1.5s ease infinite;flex-shrink:0"></div>
+      <span style="font-weight:700;color:var(--yellow)">
+        ⏳ ${qabulKutilmoqda.length} ta buyurtma to'lov qabulini kutmoqda!
+      </span>
+      <div style="display:flex;gap:8px;margin-left:auto">
+        ${qabulKutilmoqda.map(o=>`
+        <button class="btn btn-sm btn-yellow" onclick="openQabulModal(${o.id})">
+          💰 ${o.num} — Qabul qilish
+        </button>`).join('')}
+      </div>
+    </div>`:''}
+
     <div class="card">
       <div class="card-header" style="padding-bottom:12px">
         <div class="card-title">📦 Arxiv</div>
@@ -2351,16 +2548,34 @@ function renderArchive(){
         <div class="empty-icon">📦</div><div class="empty-title">Arxiv bo'sh</div>
         </div>`:`
       <table><thead><tr>
-        <th>Raqam</th><th>Mijoz</th><th>Texnika</th><th>Holat</th>
-        <th>Narx</th><th>Usta</th><th>Sana</th>
+        <th>Raqam</th><th>Mijoz</th><th>Natija</th>
+        <th>Foyda</th><th>Yo'lkira</th><th>Zapchast</th><th>Jami</th>
+        <th>To'lov</th><th>Usta</th><th>Sana</th>
       </tr></thead><tbody>
       ${archived.sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt)).map(o=>`<tr>
         <td style="font-family:monospace;font-weight:700;color:var(--purple2)">${o.num}</td>
-        <td><div style="font-weight:600">${o.clientName}</div>
-          <div style="font-size:11px;color:var(--text2)">${o.clientPhone||''}</div></td>
-        <td style="font-size:12px">${[o.tvBrand,o.tvModel,o.tvDiagonal].filter(Boolean).join(' ')||'—'}</td>
-        <td><span class="badge ${STATUS_CLASS[o.status]}">${STATUS_ICON[o.status]} ${STATUS_LABEL[o.status]}</span></td>
-        <td class="money green-text">${fmtMoney(o.finalPrice||o.estimatedPrice)}</td>
+        <td>
+          <div style="font-weight:600">${o.clientName}</div>
+          <div style="font-size:11px;color:var(--text2)">${o.clientPhone||''}</div>
+        </td>
+        <td>
+          ${o.status==='delivered'
+            ? o.qabulKutilmoqda&&!o.isPaid
+              ? `<span class="badge b-waiting" style="cursor:pointer" onclick="openQabulModal(${o.id})">⏳ Qabul kutilmoqda</span>`
+              : `<span class="badge b-done">✅ Tuzatildi</span>`
+            : `<span class="badge b-cancelled" title="${o.cancelReason||''}">❌ Tuzatilmadi${o.cancelReason?': '+o.cancelReason.slice(0,20)+'...':''}</span>`}
+        </td>
+        <td class="green-text money">${o.foyda>0?fmtMoney(o.foyda):'—'}</td>
+        <td class="yellow-text money">${o.yolkira>0?fmtMoney(o.yolkira):'—'}</td>
+        <td class="blue-text money">${o.zapchast>0?fmtMoney(o.zapchast):'—'}</td>
+        <td class="money" style="font-weight:700">${fmtMoney(o.finalPrice||o.estimatedPrice)}</td>
+        <td>
+          ${o.isPaid
+            ? `<span class="badge b-done">✅ To'landi</span>`
+            : o.qabulKutilmoqda
+              ? `<button class="btn btn-sm btn-yellow" onclick="openQabulModal(${o.id})">💰 Qabul</button>`
+              : `<span class="badge b-cancelled">—</span>`}
+        </td>
         <td style="font-size:12px">${o.masterName||'—'}</td>
         <td style="font-size:12px;color:var(--text2)">${fmtDateOnly(o.updatedAt)}</td>
       </tr>`).join('')}
