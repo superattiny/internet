@@ -232,6 +232,9 @@ tbody tr:last-child td{border-bottom:none}
         <div><div class="s-title">TV CRM</div><div class="s-sub">Boshqaruv tizimi</div></div>
       </div>
     </div>
+    <!-- KALENDAR -->
+    <div id="sidebarCalendar" style="padding:10px 12px 0;border-bottom:1px solid var(--border)"></div>
+
     <nav class="sidebar-nav">
       <div class="nav-section">Asosiy</div>
       <div class="nav-item active" onclick="showPage('dashboard')">
@@ -244,12 +247,16 @@ tbody tr:last-child td{border-bottom:none}
       <div class="nav-item" onclick="showPage('clients')">
         <span class="ni">👥</span><span>Mijozlar</span>
       </div>
+      <div class="nav-section">Ishchilar</div>
+      <div class="nav-item" onclick="showPage('workers')">
+        <span class="ni">👨‍🔧</span><span>Ishchilar</span>
+      </div>
+      <div class="nav-item" onclick="showPage('ustalar')">
+        <span class="ni">📋</span><span>Ustalar ro'yxati</span>
+      </div>
       <div class="nav-section">Moliya</div>
       <div class="nav-item" onclick="showPage('finance')">
         <span class="ni">💰</span><span>Balans</span>
-      </div>
-      <div class="nav-item" onclick="showPage('workers')">
-        <span class="ni">👨‍🔧</span><span>Ishchilar</span>
       </div>
       <div class="nav-section">Boshqa</div>
       <div class="nav-item" onclick="showPage('chats')">
@@ -309,6 +316,7 @@ tbody tr:last-child td{border-bottom:none}
       <div id="page-chats" style="display:none"></div>
       <div id="page-reminders" style="display:none"></div>
       <div id="page-archive" style="display:none"></div>
+      <div id="page-ustalar" style="display:none"></div>
       <div id="page-users" style="display:none"></div>
     </div>
   </div>
@@ -498,6 +506,7 @@ function renderPage(name,extra){
   else if(name==='clients')renderClients();
   else if(name==='finance')renderFinance();
   else if(name==='workers')renderWorkers();
+  else if(name==='ustalar')renderUstalar();
   else if(name==='chats')renderChats();
   else if(name==='reminders')renderReminders();
   else if(name==='archive')renderArchive();
@@ -889,12 +898,28 @@ function openNewOrderModal(clientId,clientName,clientPhone){
             <option value="instagram">Instagram</option>
           </select>
         </div>
-        <div class="form-group">
-          <label>👨‍🔧 Ishchi biriktirish</label>
-          <select id="oMasterId">
-            <option value="">— Keyinroq tayinlanadi —</option>
-            ${workers.map(w=>`<option value="${w.id}">${w.name} (${w.commission}%)</option>`).join('')}
-          </select>
+        <div class="form-group" style="grid-column:1/-1">
+          <label>👨‍🔧 Ustalar biriktirish (bir yoki bir nechta)</label>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;
+            background:var(--card2);border:1.5px solid var(--border);border-radius:8px;padding:10px">
+            ${workers.length===0
+              ? `<span style="color:var(--text2);font-size:13px">Ustalar yo'q — avval qo'shing</span>`
+              : workers.map(w=>`
+            <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;
+              background:var(--card);border:1.5px solid var(--border);border-radius:8px;cursor:pointer;
+              transition:all .15s" onmouseover="this.style.borderColor='var(--purple)'"
+              onmouseout="this.style.borderColor='var(--border)'">
+              <input type="checkbox" name="orderMasters" value="${w.id}"
+                style="accent-color:var(--purple);width:14px;height:14px">
+              <div>
+                <div style="font-size:12.5px;font-weight:600">${w.name}</div>
+                <div style="font-size:11px;color:var(--text2)">${w.commission}% komisyon</div>
+              </div>
+            </label>`).join('')}
+          </div>
+          <div style="font-size:11.5px;color:var(--text2);margin-top:5px">
+            💡 Bir nechta usta tanlang — pul ular o'rtasida teng taqsimlanadi
+          </div>
         </div>
         <div class="form-group">
           <label>Taxminiy narx (so'm)</label>
@@ -937,8 +962,19 @@ function saveNewOrder(){
   const num=`TV-${new Date().getFullYear()}-${String(settings.orderCounter).padStart(4,'0')}`;
   DB.setObj('settings',settings);
 
-  const masterId=document.getElementById('oMasterId').value;
-  const master=masterId?DB.get('users').find(u=>u.id==masterId):null;
+  // Ko'p usta tanlash (checkbox)
+  const selectedMasters = Array.from(
+    document.querySelectorAll('input[name="orderMasters"]:checked')
+  ).map(cb => {
+    const w = DB.get('users').find(u => u.id == cb.value);
+    return w ? {id: w.id, name: w.name, commission: w.commission} : null;
+  }).filter(Boolean);
+
+  const masterId   = selectedMasters.length > 0 ? selectedMasters[0].id : null;
+  const masterName = selectedMasters.length > 0
+    ? selectedMasters.map(m => m.name).join(', ')
+    : '';
+  const masterIds  = selectedMasters.map(m => m.id);
   const clientId=document.getElementById('oClientId').value;
 
   // Yangi mijoz yaratish
@@ -973,8 +1009,9 @@ function saveNewOrder(){
     problem,
     status:'new',
     source:document.getElementById('oSource').value,
-    masterId:master?parseInt(masterId):null,
-    masterName:master?master.name:'',
+    masterId:   masterId,
+    masterName: masterName,
+    masterIds:  masterIds,
     estimatedPrice:parseFloat(document.getElementById('oEstPrice').value)||0,
     finalPrice:0,partsCost:0,isPaid:false,payMethod:'',
     deadline,
@@ -2650,6 +2687,161 @@ function closeModal(id){
 initData();
 if(DB.get('chats').length===0)DB.set('chats',[]);
 checkSession();
+renderCalendar();
+// ================================================================
+//  KALENDAR — Sidebar da doim ko'rinib turadi
+// ================================================================
+function renderCalendar(){
+  const el=document.getElementById('sidebarCalendar');
+  if(!el)return;
+  const now=new Date();
+  const months=['Yanvar','Fevral','Mart','Aprel','May','Iyun',
+    'Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
+  const days=['Du','Se','Ch','Pa','Ju','Sh','Ya'];
+  const y=now.getFullYear(), m=now.getMonth(), d=now.getDate();
+  const firstDay=(new Date(y,m,1).getDay()+6)%7;
+  const daysInMonth=new Date(y,m+1,0).getDate();
+
+  // Bugungi buyurtmalar
+  const todayOrders=DB.get('orders').filter(o=>
+    !['delivered','cancelled'].includes(o.status)&&
+    o.deadline&&o.deadline.slice(0,10)===now.toISOString().slice(0,10)
+  ).length;
+
+  let cells='';
+  for(let i=0;i<firstDay;i++) cells+=`<div></div>`;
+  for(let i=1;i<=daysInMonth;i++){
+    const isToday=i===d;
+    const dateStr=`${y}-${String(m+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+    const hasDl=DB.get('orders').some(o=>o.deadline&&o.deadline.slice(0,10)===dateStr&&
+      !['delivered','cancelled'].includes(o.status));
+    cells+=`<div style="text-align:center;padding:2px;border-radius:4px;cursor:pointer;
+      font-size:11px;font-weight:${isToday?700:400};position:relative;
+      background:${isToday?'var(--purple)':'transparent'};
+      color:${isToday?'white':'var(--text2)'}"
+      title="${dateStr}${hasDl?' — deadline bor':''}">${i}${hasDl&&!isToday?`<span style="position:absolute;top:0;right:1px;width:4px;height:4px;background:var(--red);border-radius:50%"></span>`:''}
+    </div>`;
+  }
+
+  el.innerHTML=`
+    <div style="margin-bottom:6px">
+      <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:4px;
+        display:flex;justify-content:space-between;align-items:center">
+        <span>${months[m]} ${y}</span>
+        ${todayOrders>0?`<span style="background:var(--red);color:white;font-size:9px;
+          padding:1px 5px;border-radius:8px">${todayOrders} deadline</span>`:''}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;margin-bottom:2px">
+        ${days.map(d=>`<div style="text-align:center;font-size:9px;color:#475569;font-weight:600">${d}</div>`).join('')}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px">${cells}</div>
+      <div style="font-size:10px;color:var(--text2);margin-top:4px;text-align:center">
+        ${now.toLocaleString('uz-UZ',{weekday:'long',hour:'2-digit',minute:'2-digit'})}
+      </div>
+    </div>`;
+}
+
+// Kalendar har daqiqada yangilanadi
+setInterval(renderCalendar, 60000);
+
+// ================================================================
+//  USTALAR RO'YXATI SAHIFASI
+// ================================================================
+function renderUstalar(){
+  const masters=DB.get('users').filter(u=>u.role==='master');
+  const orders=DB.get('orders');
+
+  document.getElementById('page-ustalar').innerHTML=`
+    <div style="margin-bottom:18px">
+      <h2 style="font-size:17px;font-weight:700;color:var(--text)">👷 Ustalar ro'yxati</h2>
+      <p style="font-size:13px;color:var(--text2);margin-top:4px">Har bir ustaning buyurtmalari va balansi</p>
+    </div>
+
+    ${masters.length===0?`<div class="empty-state">
+      <div class="empty-icon">👷</div>
+      <div class="empty-title">Ustalar yo'q</div>
+      <button class="btn btn-purple" onclick="showPage('workers')" style="margin-top:12px">Usta qo'shish →</button>
+    </div>`:`
+    <div style="display:flex;flex-direction:column;gap:14px">
+      ${masters.map(master=>{
+        const masterOrders=orders.filter(o=>
+          o.masterIds&&o.masterIds.includes(master.id)||o.masterId===master.id
+        );
+        const active=masterOrders.filter(o=>!['delivered','cancelled'].includes(o.status));
+        const done=masterOrders.filter(o=>o.status==='delivered');
+        const totalEarned=done.reduce((s,o)=>{
+          if(o.masterIds&&o.masterIds.length>1){
+            return s+(o.foyda||0)/o.masterIds.length*((master.commission||30)/100);
+          }
+          return s+(o.foyda||0)*((master.commission||30)/100);
+        },0);
+
+        return`<div class="card">
+          <div style="padding:16px 20px">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <div style="width:44px;height:44px;border-radius:50%;flex-shrink:0;
+                  background:linear-gradient(135deg,var(--purple),var(--purple2));
+                  display:flex;align-items:center;justify-content:center;
+                  font-size:18px;font-weight:700;color:white">${master.name[0]}</div>
+                <div>
+                  <div style="font-size:15px;font-weight:700">${master.name}</div>
+                  <div style="font-size:12px;color:var(--text2)">@${master.username} · ${master.phone||'tel yo\'q'}</div>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <span class="badge b-done">💰 ${fmtMoney(master.balance||0)}</span>
+                <span class="badge b-progress">${master.commission||0}% komisyon</span>
+                <span class="badge ${master.active?'b-done':'b-cancelled'}">${master.active?'✅ Faol':'🔒 Block'}</span>
+              </div>
+            </div>
+
+            <!-- Statistika -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px">
+              <div style="text-align:center;padding:10px;background:var(--card2);border-radius:8px">
+                <div style="font-size:20px;font-weight:800;color:var(--blue)">${active.length}</div>
+                <div style="font-size:11px;color:var(--text2)">Aktiv</div>
+              </div>
+              <div style="text-align:center;padding:10px;background:var(--card2);border-radius:8px">
+                <div style="font-size:20px;font-weight:800;color:var(--green)">${done.length}</div>
+                <div style="font-size:11px;color:var(--text2)">Bajargan</div>
+              </div>
+              <div style="text-align:center;padding:10px;background:var(--card2);border-radius:8px">
+                <div style="font-size:16px;font-weight:800;color:var(--purple2)">${fmtMoney(Math.round(totalEarned))}</div>
+                <div style="font-size:11px;color:var(--text2)">Jami ishlab topgan</div>
+              </div>
+              <div style="text-align:center;padding:10px;background:var(--card2);border-radius:8px">
+                <div style="font-size:16px;font-weight:800;color:var(--yellow)">${fmtMoney(master.balance||0)}</div>
+                <div style="font-size:11px;color:var(--text2)">Joriy balans</div>
+              </div>
+            </div>
+
+            <!-- Aktiv buyurtmalar -->
+            ${active.length>0?`
+            <div style="margin-top:12px">
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;
+                color:var(--text2);margin-bottom:8px">Aktiv buyurtmalari</div>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                ${active.slice(0,3).map(o=>{
+                  const dl=getDeadlineInfo(o.deadline);
+                  return`<div style="display:flex;align-items:center;justify-content:space-between;
+                    padding:8px 12px;background:var(--card2);border-radius:8px;font-size:12.5px">
+                    <span style="font-family:monospace;font-weight:700;color:var(--purple2)">${o.num}</span>
+                    <span>${o.clientName}</span>
+                    <span class="badge ${STATUS_CLASS[o.status]}">${STATUS_LABEL[o.status]}</span>
+                    <span class="badge ${dl.cls||'b-new'}">${dl.label}</span>
+                  </div>`;
+                }).join('')}
+                ${active.length>3?`<div style="font-size:12px;color:var(--text2);text-align:center">
+                  ... va yana ${active.length-3} ta</div>`:''}
+              </div>
+            </div>`:''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`}`;
+}
+
 window.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
     document.querySelectorAll('.modal-overlay').forEach(m=>m.style.display='none');
