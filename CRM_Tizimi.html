@@ -2110,9 +2110,9 @@ function saveTransaction(type){
 //  ISHCHILAR SAHIFASI
 // ================================================================
 function renderWorkers(){
-  const allWorkers=DB.get('users').filter(u=>u.role!=='admin');
-  const activeWorkers=allWorkers.filter(u=>!u.fired);
-  const firedWorkers=allWorkers.filter(u=>u.fired);
+  // Bo'shatilganlar faqat arxivda — bu yerda ko'rinmaydi
+  const allWorkers=DB.get('users').filter(u=>u.role!=='admin' && !u.fired);
+  const activeWorkers=allWorkers;
   const totalBalance=activeWorkers.reduce((s,w)=>s+(w.balance||0),0);
   const totalDebt=activeWorkers.reduce((s,w)=>s+(w.debt||0),0);
   const masters=activeWorkers.filter(w=>w.role==='master').length;
@@ -2152,50 +2152,16 @@ function renderWorkers(){
       <button class="btn btn-purple" onclick="openNewWorkerModal()">＋ Yangi Ishchi</button>
     </div>
 
-    <!-- JADVAL -->
+    <!-- JADVAL — faqat faol ishchilar -->
     <div class="card">
       <div class="card-header" style="padding-bottom:12px">
-        <div class="card-title">👨‍🔧 Ishchilar ro'yxati</div>
-        <span style="font-size:13px;color:var(--text2)">${activeWorkers.length} ta faol ishchi</span>
+        <div class="card-title">👨‍🔧 Faol ishchilar ro'yxati</div>
+        <span style="font-size:13px;color:var(--text2)">${activeWorkers.length} ta</span>
       </div>
       <div class="table-wrap" style="border:none;border-radius:0" id="workersTableWrap">
         ${buildWorkersTable(activeWorkers)}
       </div>
-    </div>
-    ${firedWorkers.length>0?`
-    <div class="card" style="margin-top:18px">
-      <div class="card-header" style="padding-bottom:12px">
-        <div class="card-title" style="color:var(--red)">🚫 Ishdan bo'shatilgan ishchilar</div>
-        <span style="font-size:13px;color:var(--text2)">${firedWorkers.length} ta</span>
-      </div>
-      <div class="table-wrap" style="border:none;border-radius:0">
-      <table><thead><tr>
-        <th>Ishchi</th><th>Lavozimi</th><th>Sabab</th>
-        <th>Kim bo'shatdi</th><th>Sana</th><th>Balans</th><th>Amal</th>
-      </tr></thead><tbody>
-      ${firedWorkers.map(w=>`<tr style="opacity:.75">
-        <td>
-          <div style="display:flex;align-items:center;gap:9px">
-            <div style="width:32px;height:32px;border-radius:50%;background:#374151;
-              display:flex;align-items:center;justify-content:center;
-              font-size:13px;font-weight:700;color:var(--text2);flex-shrink:0">${w.name[0]}</div>
-            <div>
-              <div style="font-weight:600;font-size:13px">${w.name}</div>
-              <div style="font-size:11px;color:var(--text2)">@${w.username}</div>
-            </div>
-          </div>
-        </td>
-        <td><span class="badge ${w.role==='master'?'b-master':'b-operator'}">
-          ${w.role==='master'?'👷 Usta':'🖥 Operator'}</span></td>
-        <td style="font-size:12px;max-width:180px;color:var(--red)">${w.fireReason||'—'}</td>
-        <td style="font-size:12px;color:var(--text2)">${w.firedBy||'—'}</td>
-        <td style="font-size:12px;color:var(--text2)">${fmtDateOnly(w.fireDate)||'—'}</td>
-        <td class="money" style="color:var(--text2)">${fmtMoney(w.balance||0)}</td>
-        <td><button class="btn btn-sm btn-success" onclick="toggleWorker(${w.id})">🔓 Qayta</button></td>
-      </tr>`).join('')}
-      </tbody></table>
-      </div>
-    </div>`:''}`;
+    </div>`;
 }
 
 function buildWorkersTable(workers){
@@ -2253,6 +2219,8 @@ function buildWorkersTable(workers){
           title="Ish haqi to'lash" ${!w.active||!(w.balance>0)?'disabled style="opacity:.4"':''}>💳</button>
         <button class="btn btn-sm btn-blue" onclick="openDebtModal(${w.id})"
           title="Qarz belgilash">💸</button>
+        <button class="btn btn-sm btn-purple" onclick="openToolsModal(${w.id})"
+          title="Asbob-uskunalar">🔧</button>
         <button class="btn btn-sm btn-ghost" onclick="editWorker(${w.id})"
           title="Tahrirlash">✏️</button>
         ${w.id!==currentUser.id?`
@@ -2348,17 +2316,196 @@ function saveNewWorker(){
   if(password.length<4){toast('Parol kamida 4 ta belgi!','error');return;}
   const users=DB.get('users');
   if(users.find(u=>u.username===username)){toast('Bu login band!','error');return;}
-  users.push({id:nextId(users),name,username,password,
+
+  const newWorker={
+    id:nextId(users),name,username,password,
     phone:document.getElementById('wPhone').value.trim(),
     role:document.getElementById('wRole').value,
     commission:parseInt(document.getElementById('wCommission').value)||0,
-    balance:0,active:true,fired:false});
+    balance:0,active:true,fired:false,
+    tools:[]  // Asbob-uskunalar ro'yxati
+  };
+  users.push(newWorker);
   DB.set('users',users);
   closeModal('modalNewWorker');
   toast('✅ ' + name + ' ishchi qo\'shildi');
+
+  // Asbob-uskuna qo'shish modali
+  setTimeout(()=>openToolsModal(newWorker.id, true), 300);
   renderWorkers();
-  // Ustalar ro'yxatini ham yangilaymiz
   if(document.getElementById('page-ustalar')?.style.display!=='none') renderUstalar();
+}
+
+// ================================================================
+//  ASBOB-USKUNALAR TIZIMI
+// ================================================================
+
+function openToolsModal(workerId, isNew=false){
+  const users=DB.get('users');
+  const w=users.find(u=>u.id===workerId);
+  if(!w)return;
+  w.tools=w.tools||[];
+
+  openModal('modalTools',`
+    <div class="modal-header">
+      <div class="modal-title">🔧 Asbob-uskunalar — ${w.name}</div>
+      <button class="modal-close" onclick="closeModal('modalTools')">✕</button>
+    </div>
+    <div class="modal-body">
+      ${isNew?`<div style="background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);
+        border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;color:var(--green)">
+        ✅ Ishchi qo'shildi! Endi unga beriladigan asbob-uskunalarni kiriting.
+      </div>`:''}
+
+      <!-- Yangi asbob qo'shish -->
+      <div style="background:var(--card2);border-radius:10px;padding:14px;margin-bottom:16px">
+        <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:10px;text-transform:uppercase">
+          ➕ Yangi asbob qo'shish
+        </div>
+        <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:end">
+          <div>
+            <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">Asbob nomi</label>
+            <input id="toolName" placeholder="Kompyuter, Pishtak, Kalit to'plami..."
+              style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;
+              background:var(--card);color:var(--text);font-size:13px;outline:none;font-family:inherit">
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">Soni</label>
+            <input type="number" id="toolQty" value="1" min="1"
+              style="width:70px;padding:8px;border:1.5px solid var(--border);border-radius:7px;
+              background:var(--card);color:var(--text);font-size:13px;outline:none;font-family:inherit">
+          </div>
+          <button onclick="addTool(${w.id})" class="btn btn-success" style="padding:8px 14px">
+            ➕ Qo'sh
+          </button>
+        </div>
+      </div>
+
+      <!-- Asboblar ro'yxati -->
+      <div id="toolsList">
+        ${renderToolsList(w)}
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" style="width:auto" onclick="closeModal('modalTools')">
+        ✅ Tayyor
+      </button>
+    </div>
+  `,'modal-md');
+}
+
+function renderToolsList(w){
+  if(!w.tools||w.tools.length===0){
+    return`<div style="text-align:center;padding:20px;color:var(--text2);font-size:13px">
+      📦 Hali asbob-uskuna biriktirilmagan
+    </div>`;
+  }
+
+  const STATUS_ICONS={'active':'✅','reduced':'🔽','broken':'💥','lost':'❓','returned':'↩️'};
+  const STATUS_LABELS={'active':'Berilgan','reduced':'Kamaytirildi','broken':'Buzildi','lost':'Yo\'qoldi','returned':'Qaytarildi'};
+
+  return`<div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px;text-transform:uppercase">
+    📋 Berilgan asboblar (${w.tools.filter(t=>t.status!=='returned').length} ta aktiv)
+  </div>
+  <div style="display:flex;flex-direction:column;gap:8px">
+  ${w.tools.map((t,i)=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;
+      background:var(--card2);border-radius:9px;
+      ${t.status==='returned'?'opacity:.5':''}
+      border-left:3px solid ${t.status==='active'?'var(--green)':t.status==='returned'?'var(--border)':t.status==='lost'?'var(--red)':t.status==='broken'?'var(--yellow)':'var(--blue)'}">
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:13px">${t.name}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px">
+          Soni: <b>${t.qty}</b> ta · Berildi: ${fmtDateOnly(t.givenDate)}
+          ${t.notes?` · ${t.notes}`:''}
+        </div>
+      </div>
+      <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;
+        background:${t.status==='active'?'rgba(16,185,129,.15)':t.status==='returned'?'var(--border)':t.status==='lost'?'rgba(239,68,68,.15)':'rgba(245,158,11,.15)'};
+        color:${t.status==='active'?'var(--green)':t.status==='returned'?'var(--text2)':t.status==='lost'?'var(--red)':'var(--yellow)'}">
+        ${STATUS_ICONS[t.status]||'?'} ${STATUS_LABELS[t.status]||t.status}
+      </span>
+      ${t.status!=='returned'?`
+      <div style="display:flex;gap:5px">
+        <button onclick="changeToolQty(${w.id},${i},1)" title="Ko'paytirish"
+          class="btn btn-sm" style="padding:3px 8px;background:rgba(16,185,129,.15);color:var(--green);border:none">＋</button>
+        <button onclick="changeToolQty(${w.id},${i},-1)" title="Kamaytirish"
+          class="btn btn-sm" style="padding:3px 8px;background:rgba(245,158,11,.15);color:var(--yellow);border:none">－</button>
+        <button onclick="setToolStatus(${w.id},${i},'broken')" title="Buzildi"
+          class="btn btn-sm" style="padding:3px 8px;background:rgba(245,158,11,.15);color:var(--yellow);border:none">💥</button>
+        <button onclick="setToolStatus(${w.id},${i},'lost')" title="Yo'qoldi"
+          class="btn btn-sm" style="padding:3px 8px;background:rgba(239,68,68,.15);color:var(--red);border:none">❓</button>
+        <button onclick="setToolStatus(${w.id},${i},'returned')" title="Qaytarildi"
+          class="btn btn-sm btn-success" style="padding:3px 8px;font-size:10px">↩️</button>
+      </div>`:''}
+    </div>`).join('')}
+  </div>`;
+}
+
+function addTool(workerId){
+  const name=document.getElementById('toolName').value.trim();
+  const qty=parseInt(document.getElementById('toolQty').value)||1;
+  if(!name){toast('Asbob nomi kiritilishi shart!','error');return;}
+
+  const users=DB.get('users');
+  const w=users.find(u=>u.id===workerId);
+  if(!w)return;
+  w.tools=w.tools||[];
+  w.tools.push({
+    name,qty,
+    status:'active',
+    givenDate:today(),
+    notes:'',
+    history:[{action:'add',qty,date:today(),by:currentUser.name}]
+  });
+  DB.set('users',users);
+  document.getElementById('toolName').value='';
+  document.getElementById('toolQty').value='1';
+  document.getElementById('toolsList').innerHTML=renderToolsList(w);
+  toast(`✅ ${name} qo'shildi (${qty} ta)`);
+}
+
+function changeToolQty(workerId, idx, delta){
+  const users=DB.get('users');
+  const w=users.find(u=>u.id===workerId);
+  if(!w||!w.tools[idx])return;
+  const tool=w.tools[idx];
+  const newQty=tool.qty+delta;
+  if(newQty<=0){
+    if(!confirm(`${tool.name} soni 0 ga tushdi — yo'qoldi deb belgilasinmi?`))return;
+    tool.status='lost';
+    tool.qty=0;
+    toast(`❓ ${tool.name} yo'qoldi deb belgilandi`,'info');
+  } else {
+    tool.qty=newQty;
+    tool.history=tool.history||[];
+    tool.history.push({
+      action:delta>0?'add':'reduce',
+      qty:Math.abs(delta),
+      date:today(),by:currentUser.name,
+      note:delta>0?`+${delta} ta qo'shildi`:`${delta} ta kamaytirildi`
+    });
+    toast(`${delta>0?'➕':'➖'} ${tool.name}: ${newQty} ta`);
+  }
+  DB.set('users',users);
+  document.getElementById('toolsList').innerHTML=renderToolsList(w);
+}
+
+function setToolStatus(workerId, idx, status){
+  const STATUS_MSG={
+    'broken':'💥 Buzildi deb belgilandi',
+    'lost':'❓ Yo\'qoldi deb belgilandi',
+    'returned':'↩️ Qaytarildi deb belgilandi'
+  };
+  const users=DB.get('users');
+  const w=users.find(u=>u.id===workerId);
+  if(!w||!w.tools[idx])return;
+  w.tools[idx].status=status;
+  w.tools[idx].history=w.tools[idx].history||[];
+  w.tools[idx].history.push({action:status,date:today(),by:currentUser.name});
+  DB.set('users',users);
+  document.getElementById('toolsList').innerHTML=renderToolsList(w);
+  toast(STATUS_MSG[status]||'Yangilandi','info');
 }
 
 function editWorker(id){
@@ -2483,14 +2630,103 @@ function confirmFire(id){
   const w=users.find(u=>u.id===id);
   if(!w)return;
 
+  // Asboblar qaytarilganligini tekshirish
+  const activeTools=(w.tools||[]).filter(t=>t.status==='active'||t.status==='broken');
+  if(activeTools.length>0){
+    // Asboblar qaytarish modali
+    closeModal('modalFire');
+    setTimeout(()=>openToolsReturnModal(id, sabab, SABAB[sabab]||sabab, izoh), 300);
+    return;
+  }
+
+  // Asbob yo'q — to'g'ridan bo'shatish
+  doFireWorker(id, SABAB[sabab]||sabab, izoh);
+}
+
+function openToolsReturnModal(workerId, sabab, sababText, izoh){
+  const users=DB.get('users');
+  const w=users.find(u=>u.id===workerId);
+  if(!w)return;
+  const activeTools=(w.tools||[]).filter(t=>t.status==='active'||t.status==='broken');
+
+  openModal('modalToolsReturn',`
+    <div class="modal-header">
+      <div class="modal-title">🔧 Asbob-uskuna qaytarish — ${w.name}</div>
+      <button class="modal-close" onclick="closeModal('modalToolsReturn')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);
+        border-radius:10px;padding:12px;margin-bottom:16px;font-size:13px;color:var(--yellow)">
+        ⚠️ Ishdan bo'shatilishidan oldin quyidagi asboblarning holati belgilanishi shart!
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${activeTools.map((t,i)=>`
+        <div style="padding:12px;background:var(--card2);border-radius:10px">
+          <div style="font-weight:700;margin-bottom:8px">${t.name} (${t.qty} ta)</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button onclick="markReturnTool(${workerId},'${t.name}','returned')"
+              class="btn btn-sm btn-success">↩️ Qaytarildi</button>
+            <button onclick="markReturnTool(${workerId},'${t.name}','lost')"
+              class="btn btn-sm btn-danger">❓ Yo'qoldi</button>
+            <button onclick="markReturnTool(${workerId},'${t.name}','broken')"
+              class="btn btn-sm btn-yellow">💥 Buzilgan</button>
+          </div>
+        </div>`).join('')}
+      </div>
+      <div id="returnStatus" style="margin-top:12px;font-size:13px;color:var(--text2)"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalToolsReturn')">Bekor</button>
+      <button id="btnDoFire" class="btn btn-danger" onclick="doFireWorker(${workerId},'${sababText}','${izoh}');closeModal('modalToolsReturn')">
+        🚫 Ishdan bo'shatish
+      </button>
+    </div>
+  `,'modal-md');
+
+  // Belgilangan asboblar hisobini ko'rsatish uchun
+  window._returnWorkerId=workerId;
+  window._returnSabab=sababText;
+  window._returnIzoh=izoh;
+}
+
+function markReturnTool(workerId, toolName, status){
+  const users=DB.get('users');
+  const w=users.find(u=>u.id===workerId);
+  if(!w)return;
+  const tool=w.tools.find(t=>t.name===toolName);
+  if(tool){
+    tool.status=status;
+    tool.history=tool.history||[];
+    tool.history.push({action:status,date:today(),by:currentUser.name});
+    DB.set('users',users);
+  }
+  const STATUS_MSG={'returned':'↩️ Qaytarildi','lost':'❓ Yo\'qoldi','broken':'💥 Buzilgan'};
+  toast(`${toolName}: ${STATUS_MSG[status]}`);
+
+  // Qolgan belgilanmagan asboblarni ko'rsatish
+  const remaining=(w.tools||[]).filter(t=>t.status==='active').length;
+  const el=document.getElementById('returnStatus');
+  if(el){
+    if(remaining>0){
+      el.innerHTML=`<span style="color:var(--yellow)">⚠️ Yana ${remaining} ta asbob belgilanmagan</span>`;
+    } else {
+      el.innerHTML=`<span style="color:var(--green)">✅ Barcha asboblar belgilandi</span>`;
+    }
+  }
+}
+
+function doFireWorker(id, sababText, izoh){
+  const users=DB.get('users');
+  const w=users.find(u=>u.id===id);
+  if(!w)return;
+
   w.active=false;
   w.fired=true;
-  w.fireReason=(SABAB[sabab]||sabab)+(izoh?' — '+izoh:'');
+  w.fireReason=sababText+(izoh?' — '+izoh:'');
   w.fireDate=today();
   w.firedBy=currentUser.name;
   DB.set('users',users);
 
-  closeModal('modalFire');
   toast(`🚫 ${w.name} ishdan bo'shatildi`,'info');
   renderWorkers();
 }
@@ -2876,7 +3112,7 @@ function renderArchive(){
       <table><thead><tr>
         <th>Ishchi</th><th>Lavozim</th><th>Telefon</th>
         <th>Bo'shatish sababi</th><th>Kim bo'shatdi</th><th>Sana</th>
-        <th>Balansi</th><th>Qarzi</th><th>Bajargan ishlari</th><th>Amal</th>
+        <th>Balansi</th><th>Qarzi</th><th>Asboblar</th><th>Bajargan ishlari</th><th>Amal</th>
       </tr></thead><tbody>
       ${firedUsers.map(w=>{
         const done=DB.get('orders').filter(o=>
@@ -2903,6 +3139,22 @@ function renderArchive(){
           <td style="font-size:12px;color:var(--text2)">${fmtDateOnly(w.fireDate)||'—'}</td>
           <td class="money ${(w.balance||0)>0?'green-text':''}">${fmtMoney(w.balance||0)}</td>
           <td class="money ${(w.debt||0)>0?'red-text':''}">${(w.debt||0)>0?fmtMoney(w.debt):'—'}</td>
+          <td style="font-size:11px">
+            ${(()=>{
+              const tools=w.tools||[];
+              if(!tools.length) return '<span style="color:var(--text2)">—</span>';
+              const ret=tools.filter(t=>t.status==='returned').length;
+              const lost=tools.filter(t=>t.status==='lost').length;
+              const broken=tools.filter(t=>t.status==='broken').length;
+              const active=tools.filter(t=>t.status==='active').length;
+              return [
+                ret>0?`<span style="color:var(--green)">↩️${ret}</span>`:'',
+                lost>0?`<span style="color:var(--red)">❓${lost}</span>`:'',
+                broken>0?`<span style="color:var(--yellow)">💥${broken}</span>`:'',
+                active>0?`<span style="color:var(--text2)">📦${active}</span>`:''
+              ].filter(Boolean).join(' ');
+            })()}
+          </td>
           <td style="text-align:center;font-weight:800;color:var(--blue);font-size:15px">${done}</td>
           <td><button class="btn btn-sm btn-success" onclick="rehireWorker(${w.id})">
             🔓 Qayta olish</button></td>
