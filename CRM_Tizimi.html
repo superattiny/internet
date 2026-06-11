@@ -855,12 +855,30 @@ function openNewOrderModal(clientId,clientName,clientPhone){
     <div class="modal-body">
       <div class="section-title">👥 Mijoz</div>
       <div class="grid-2">
-        <div class="form-group">
-          <label>Mavjud mijoz</label>
-          <select id="oClientId" onchange="fillClientFromSelect(this.value)">
-            <option value="">— Yangi mijoz —</option>
-            ${clients.map(c=>`<option value="${c.id}" ${c.id==clientId?'selected':''}>${c.name} (${c.phone||'tel yo\'q'})</option>`).join('')}
-          </select>
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Mavjud mijozni tanlang (alifbo bo'yicha filtrlash)</label>
+          <div style="position:relative">
+            <input id="oClientSearch"
+              placeholder="🔍 Ism yoki telefon yozing — P → P dan boshlanuvchilar..."
+              autocomplete="off" value="${clientName||''}"
+              oninput="filterClientDropdown(this.value)"
+              onfocus="filterClientDropdown(this.value)"
+              style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;
+              background:var(--card2);color:var(--text);font-size:14px;outline:none;font-family:inherit">
+            <input type="hidden" id="oClientId" value="${clientId||''}">
+            <div id="clientDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;
+              background:var(--card);border:1.5px solid var(--purple);border-top:none;
+              border-radius:0 0 10px 10px;z-index:999;max-height:220px;overflow-y:auto;
+              box-shadow:0 8px 24px rgba(0,0,0,.4)">
+            </div>
+          </div>
+          <div id="selectedClientInfo" style="display:${clientId?'flex':'none'};margin-top:6px;
+            padding:6px 12px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);
+            border-radius:7px;font-size:12px;color:var(--green);align-items:center;gap:8px">
+            ${clientId?`✅ Tanlangan: <b>${clientName}</b> — ${clientPhone||''}
+            <span onclick="clearClientSelection()" style="cursor:pointer;margin-left:auto;
+              color:var(--text2);font-size:14px">✕</span>`:''}
+          </div>
         </div>
         <div class="form-group">
           <label>Mijoz ismi <span style="color:var(--red)">*</span></label>
@@ -904,7 +922,9 @@ function openNewOrderModal(clientId,clientName,clientPhone){
           </select>
         </div>
         <div class="form-group" style="grid-column:1/-1">
-          <label>👨‍🔧 Ishchilar biriktirish</label>
+          <label>👨‍🔧 Ishchi biriktirish <span style="color:var(--red)">*</span>
+            <span style="font-size:11px;font-weight:400;color:var(--text2)"> (kamida 1 ta tanlash shart)</span>
+          </label>
           <div style="background:var(--card2);border:1.5px solid var(--border);border-radius:8px;padding:10px">
             ${workers.length===0
               ? `<div style="color:var(--text2);font-size:13px;text-align:center;padding:10px">
@@ -938,8 +958,24 @@ function openNewOrderModal(clientId,clientName,clientPhone){
           </div>
         </div>
         <div class="form-group">
-          <label>Taxminiy narx (so'm)</label>
-          <input type="number" id="oEstPrice" placeholder="150000" min="0">
+          <label>💰 Narx
+            <span id="narxLabel" style="font-size:11px;font-weight:400;color:var(--text2)"> (so'm)</span>
+          </label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="number" id="oEstPrice" placeholder="150000" min="0"
+              style="flex:1" oninput="toggleNarxKeyinroq(this.value)">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;
+              padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;
+              background:var(--card2);font-size:13px;white-space:nowrap">
+              <input type="checkbox" id="narxKeyinroq"
+                onchange="toggleNarxKeyinroqCheck(this.checked)"
+                style="accent-color:var(--yellow);width:14px;height:14px">
+              ⏳ Keyinroq aytiladi
+            </label>
+          </div>
+          <div id="narxError" style="display:none;font-size:12px;color:var(--red);margin-top:4px">
+            ⚠️ Narx kiritilishi yoki "Keyinroq aytiladi" belgilanishi shart
+          </div>
         </div>
         <div class="form-group">
           <label>⏰ Deadline <span style="color:var(--red)">*</span></label>
@@ -964,21 +1000,171 @@ function fillClientFromSelect(id){
   }
 }
 
+// ── Alifbo bo'yicha mijoz qidiruv ─────────────────────────────
+function filterClientDropdown(q){
+  const dropdown=document.getElementById('clientDropdown');
+  if(!dropdown)return;
+  const clients=DB.get('clients');
+
+  // Alifbo bo'yicha saralash + filter
+  let filtered=clients.slice().sort((a,b)=>a.name.localeCompare(b.name,'uz'));
+  if(q && q.trim()){
+    const sq=q.trim().toLowerCase();
+    // Birinchi harfdan boshlanuvchilar YUQORIDA, qolganlari pastda
+    const startsWith=filtered.filter(c=>
+      c.name.toLowerCase().startsWith(sq) ||
+      (c.phone||'').startsWith(sq)
+    );
+    const contains=filtered.filter(c=>
+      !c.name.toLowerCase().startsWith(sq) &&
+      !(c.phone||'').startsWith(sq) &&
+      (c.name.toLowerCase().includes(sq)||(c.phone||'').includes(sq))
+    );
+    filtered=[...startsWith,...contains];
+  }
+
+  if(filtered.length===0 && q){
+    dropdown.innerHTML=`
+      <div style="padding:10px 14px;font-size:13px;color:var(--text2)">
+        "${q}" bo'yicha topilmadi
+      </div>
+      <div onclick="selectClientFromDropdown('','${q}','','')"
+        style="padding:10px 14px;cursor:pointer;font-size:13px;color:var(--purple2);font-weight:600;
+        border-top:1px solid var(--border)"
+        onmouseover="this.style.background='rgba(124,58,237,.1)'"
+        onmouseout="this.style.background=''">
+        ＋ "${q}" — yangi mijoz yaratish
+      </div>`;
+  } else {
+    dropdown.innerHTML=filtered.slice(0,10).map(c=>`
+      <div onclick="selectClientFromDropdown(${c.id},'${c.name.replace(/'/g,"\\'")}','${(c.phone||'').replace(/'/g,"\\'")}','')"
+        style="padding:9px 14px;cursor:pointer;font-size:13px;
+        border-bottom:1px solid rgba(45,45,80,.3);display:flex;align-items:center;gap:8px"
+        onmouseover="this.style.background='rgba(124,58,237,.12)'"
+        onmouseout="this.style.background=''">
+        <div style="width:28px;height:28px;border-radius:50%;background:var(--purple);
+          display:flex;align-items:center;justify-content:center;font-size:12px;
+          font-weight:700;color:white;flex-shrink:0">${c.name[0].toUpperCase()}</div>
+        <div>
+          <div style="font-weight:600">${highlightMatch(c.name,q)}</div>
+          <div style="font-size:11px;color:var(--text2)">${c.phone||''}</div>
+        </div>
+      </div>`).join('')+
+    `<div onclick="selectClientFromDropdown('','','','')"
+      style="padding:9px 14px;cursor:pointer;font-size:13px;color:var(--purple2);
+      font-weight:600;border-top:1px solid var(--border)"
+      onmouseover="this.style.background='rgba(124,58,237,.1)'"
+      onmouseout="this.style.background=''">
+      ＋ Yangi mijoz yaratish
+    </div>`;
+  }
+
+  dropdown.style.display='block';
+}
+
+function highlightMatch(text, q){
+  if(!q)return text;
+  const idx=text.toLowerCase().indexOf(q.toLowerCase());
+  if(idx<0)return text;
+  return text.slice(0,idx)+
+    `<b style="color:var(--purple2)">${text.slice(idx,idx+q.length)}</b>`+
+    text.slice(idx+q.length);
+}
+
+function showClientDropdown(){
+  filterClientDropdown(document.getElementById('oClientSearch')?.value||'');
+}
+
+function selectClientFromDropdown(id, name, phone, _){
+  document.getElementById('oClientId').value=id||'';
+  const searchEl=document.getElementById('oClientSearch');
+  if(searchEl) searchEl.value=name||'';
+  // Ism va telefon maydonlarini to'ldirish
+  const nameEl=document.getElementById('oClientName');
+  const phoneEl=document.getElementById('oClientPhone');
+  if(nameEl) nameEl.value=name||'';
+  if(phoneEl) phoneEl.value=phone||'';
+  // Info ko'rsatish
+  const info=document.getElementById('selectedClientInfo');
+  if(info && name){
+    info.style.display='flex';
+    info.innerHTML=`✅ Tanlandi: <b>${name}</b>${phone?' — '+phone:''} <span onclick="clearClientSelection()" style="cursor:pointer;margin-left:auto;color:var(--text2);font-size:15px">✕</span>`;
+  }
+  // Dropdownni yopish
+  const dd=document.getElementById('clientDropdown');
+  if(dd) dd.style.display='none';
+}
+
+function clearClientSelection(){
+  document.getElementById('oClientId').value='';
+  const s=document.getElementById('oClientSearch');
+  if(s)s.value='';
+  const n=document.getElementById('oClientName');
+  if(n)n.value='';
+  const p=document.getElementById('oClientPhone');
+  if(p)p.value='';
+  const info=document.getElementById('selectedClientInfo');
+  if(info)info.style.display='none';
+}
+
+function toggleNarxKeyinroq(val){
+  if(val && parseFloat(val)>0){
+    const cb=document.getElementById('narxKeyinroq');
+    if(cb)cb.checked=false;
+  }
+  document.getElementById('narxError').style.display='none';
+}
+
+function toggleNarxKeyinroqCheck(checked){
+  const inp=document.getElementById('oEstPrice');
+  if(inp){
+    inp.disabled=checked;
+    inp.style.opacity=checked?'0.5':'1';
+    if(checked)inp.value='';
+  }
+  document.getElementById('narxError').style.display='none';
+}
+
+// Dropdown ni yopish (tashqariga bosganda)
+document.addEventListener('click', function(e){
+  const dd=document.getElementById('clientDropdown');
+  const input=document.getElementById('oClientSearch');
+  if(dd && input && !input.contains(e.target) && !dd.contains(e.target)){
+    dd.style.display='none';
+  }
+});
+
 function saveNewOrder(){
   const clientName=document.getElementById('oClientName').value.trim();
   const problem=document.getElementById('oProblem').value.trim();
   const deadline=document.getElementById('oDeadline').value;
-  if(!clientName){toast('Mijoz ismi kiritilishi shart!','error');return;}
+
+  // Validatsiya: Mijoz
+  if(!clientName && !document.getElementById('oClientId').value){
+    toast('Mijoz tanlanishi yoki ismi kiritilishi shart!','error');return;
+  }
+  const finalClientName = clientName ||
+    document.getElementById('oClientSearch')?.value?.split('(')[0]?.trim() || '';
+  if(!finalClientName){toast('Mijoz ismi kiritilishi shart!','error');return;}
+
+  // Validatsiya: Muammo
   if(!problem||problem.length<4){toast("Muammo tavsifi kamida 4 ta belgi bo'lishi kerak!",'error');return;}
+
+  // Validatsiya: Deadline
   if(!deadline){toast('Deadline kiritilishi shart!','error');return;}
   if(new Date(deadline)<=new Date()){toast("Deadline o'tgan vaqt bo'lishi mumkin emas!",'error');return;}
 
-  const settings=DB.getObj('settings');
-  settings.orderCounter=(settings.orderCounter||0)+1;
-  const num=`TV-${new Date().getFullYear()}-${String(settings.orderCounter).padStart(4,'0')}`;
-  DB.setObj('settings',settings);
+  // Validatsiya: Narx
+  const estPrice=parseFloat(document.getElementById('oEstPrice').value)||0;
+  const narxKeyinroq=document.getElementById('narxKeyinroq')?.checked;
+  if(!estPrice && !narxKeyinroq){
+    document.getElementById('narxError').style.display='block';
+    toast('Narx kiritilishi yoki "Keyinroq aytiladi" belgilanishi shart!','error');
+    return;
+  }
+  document.getElementById('narxError').style.display='none';
 
-  // Ko'p usta tanlash (checkbox)
+  // Validatsiya: Ishchi (kamida 1 ta)
   const selectedMasters = Array.from(
     document.querySelectorAll('input[name="orderMasters"]:checked')
   ).map(cb => {
@@ -986,6 +1172,28 @@ function saveNewOrder(){
     return w ? {id: w.id, name: w.name, commission: w.commission} : null;
   }).filter(Boolean);
 
+  if(selectedMasters.length === 0){
+    toast('Kamida 1 ta ishchi tanlanishi shart!','error');
+    // Ishchilar qismini ko'rsatib berish
+    const toolsDiv = document.querySelector('#modalNewOrder [name="orderMasters"]');
+    if(toolsDiv){
+      toolsDiv.closest('div').style.border='2px solid var(--red)';
+      toolsDiv.closest('div').style.borderRadius='8px';
+      setTimeout(()=>{
+        if(toolsDiv.closest('div')){
+          toolsDiv.closest('div').style.border='';
+        }
+      },3000);
+    }
+    return;
+  }
+
+  const settings=DB.getObj('settings');
+  settings.orderCounter=(settings.orderCounter||0)+1;
+  const num=`TV-${new Date().getFullYear()}-${String(settings.orderCounter).padStart(4,'0')}`;
+  DB.setObj('settings',settings);
+
+  // Ko'p usta tanlash (checkbox) — yuqorida allaqachon qilingan
   const masterId   = selectedMasters.length > 0 ? selectedMasters[0].id : null;
   const masterName = selectedMasters.length > 0
     ? selectedMasters.map(m => m.name).join(', ')
@@ -1028,7 +1236,8 @@ function saveNewOrder(){
     masterId:   masterId,
     masterName: masterName,
     masterIds:  masterIds,
-    estimatedPrice:parseFloat(document.getElementById('oEstPrice').value)||0,
+    estimatedPrice: narxKeyinroq ? 0 : (estPrice || 0),
+    narxKeyinroq:   narxKeyinroq || false,
     finalPrice:0,partsCost:0,isPaid:false,payMethod:'',
     deadline,
     createdAt:today(),updatedAt:today(),
