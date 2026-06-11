@@ -2315,6 +2315,8 @@ function renderFinance(){
         <div style="display:flex;gap:6px">
           <button class="btn btn-sm btn-success" onclick="openAddIncome()">＋ Kirim</button>
           <button class="btn btn-sm btn-danger"  onclick="openAddExpense()">— Chiqim</button>
+          <button class="btn btn-sm btn-ghost" onclick="resetBalance()" title="Balansni 0 ga tushirish"
+            style="border-color:rgba(239,68,68,.4);color:var(--red)">🗑 Balans</button>
         </div>
       </div>
     </div>
@@ -2439,6 +2441,41 @@ function renderFinance(){
       <div class="empty-icon">💰</div>
       <div class="empty-title">Bu davrda harakat yo'q</div></div></div>`}
   `;
+}
+
+// ================================================================
+//  BALANS VA ARXIVNI TOZALASH
+// ================================================================
+function resetBalance(){
+  if(!confirm('⚠️ Balans va barcha tranzaksiyalar 0 ga tushuriladi!\n\nDavom etasizmi?')) return;
+  DB.setObj('finance',{balance:0,totalIncome:0,totalExpense:0,initBalance:0});
+  DB.set('transactions',[]);
+  toast('✅ Balans 0 ga tushirildi','info');
+  updateTopbarBalance();
+  if(currentPage==='finance') renderFinance();
+  if(currentPage==='dashboard') renderDashboard();
+}
+
+function resetArchive(){
+  if(!confirm('⚠️ Barcha yopilgan buyurtmalar (arxiv) o\'chiriladi!\n\nDavom etasizmi?')) return;
+  const orders = DB.get('orders').filter(o=>
+    !(['delivered','cancelled'].includes(o.status) || o.archived)
+  );
+  DB.set('orders', orders);
+  toast('✅ Arxiv tozalandi','info');
+  if(currentPage==='archive') renderArchive();
+  if(currentPage==='dashboard') renderDashboard();
+  updateOverdueAlert();
+}
+
+function resetAll(){
+  if(!confirm('⚠️⚠️ BARCHA MA\'LUMOTLAR O\'CHIRILADI!\nBuyurtmalar, Arxiv, Balans, Tranzaksiyalar!\n\nRostan davom etasizmi?')) return;
+  if(!confirm('Ikkinchi tasdiqlash: Hamma narsa 0 ga tushadi. Rozimisiz?')) return;
+  DB.set('orders',[]);
+  DB.set('transactions',[]);
+  DB.setObj('finance',{balance:0,totalIncome:0,totalExpense:0,initBalance:0});
+  toast('✅ Hammasi tozalandi','info');
+  refreshAll();
 }
 
 function openAddIncome(){
@@ -3407,24 +3444,30 @@ function renderArchive(){
     </div>`:''}
 
     <!-- 2 ta TAB -->
-    <div style="display:flex;gap:5px;margin-bottom:16px;background:var(--card);
-      padding:4px;border-radius:12px;width:fit-content;border:1px solid var(--border)">
-      <button onclick="archiveTab='orders';renderArchive()"
-        style="padding:8px 20px;border-radius:9px;border:none;cursor:pointer;
-        font-weight:700;font-size:13px;transition:all .15s;
-        background:${archiveTab==='orders'?'var(--purple)':'transparent'};
-        color:${archiveTab==='orders'?'white':'var(--text2)'}">
-        📦 Ishlar tarixi
-      </button>
-      <button onclick="archiveTab='workers';renderArchive()"
-        style="padding:8px 20px;border-radius:9px;border:none;cursor:pointer;
-        font-weight:700;font-size:13px;transition:all .15s;
-        background:${archiveTab==='workers'?'var(--red)':'transparent'};
-        color:${archiveTab==='workers'?'white':'var(--text2)'}">
-        🚫 Ishdan bo'shatilgan ishchilar
-        ${firedUsers.length>0?`<span style="background:rgba(255,255,255,.3);
-          border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px">
-          ${firedUsers.length}</span>`:''}
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+      <div style="display:flex;gap:5px;background:var(--card);
+        padding:4px;border-radius:12px;border:1px solid var(--border)">
+        <button onclick="archiveTab='orders';renderArchive()"
+          style="padding:8px 20px;border-radius:9px;border:none;cursor:pointer;
+          font-weight:700;font-size:13px;transition:all .15s;
+          background:${archiveTab==='orders'?'var(--purple)':'transparent'};
+          color:${archiveTab==='orders'?'white':'var(--text2)'}">
+          📦 Ishlar tarixi
+        </button>
+        <button onclick="archiveTab='workers';renderArchive()"
+          style="padding:8px 20px;border-radius:9px;border:none;cursor:pointer;
+          font-weight:700;font-size:13px;transition:all .15s;
+          background:${archiveTab==='workers'?'var(--red)':'transparent'};
+          color:${archiveTab==='workers'?'white':'var(--text2)'}">
+          🚫 Ishdan bo'shatilgan ishchilar
+          ${firedUsers.length>0?`<span style="background:rgba(255,255,255,.3);
+            border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px">
+            ${firedUsers.length}</span>`:''}
+        </button>
+      </div>
+      <button onclick="resetArchive()" class="btn btn-sm"
+        style="border:1.5px solid rgba(239,68,68,.4);color:var(--red);background:rgba(239,68,68,.08)">
+        🗑 Arxivni tozalash
       </button>
     </div>
 
