@@ -2381,30 +2381,6 @@ function renderFinance(){
 }
 
 function openAddIncome(){
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-header"><div class="card-title">📊 Bugun</div></div>
-          <div class="card-body">
-            ${(()=>{
-              const todayTr=DB.get('transactions').filter(t=>t.date===today());
-              const todayIn=todayTr.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-              const todayOut=todayTr.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
-              return`<div class="info-row"><span class="info-label">Kirim:</span>
-                <span class="green-text money">${fmtMoney(todayIn)}</span></div>
-              <div class="info-row"><span class="info-label">Chiqim:</span>
-                <span class="red-text money">${fmtMoney(todayOut)}</span></div>
-              <div class="divider"></div>
-              <div class="info-row"><span class="info-label">Balans:</span>
-                <span class="money" style="font-weight:800;color:var(--cyan)">${fmtMoney(todayIn-todayOut)}</span></div>`;
-            })()}
-          </div>
-        </div>
-      </div>
-    </div>`;
-}
-
-function openAddIncome(){
   openModal('modalIncome',`
     <div class="modal-header"><div class="modal-title">📈 Kirim qo'shish</div>
       <button class="modal-close" onclick="closeModal('modalIncome')">✕</button></div>
