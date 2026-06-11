@@ -2243,62 +2243,52 @@ function renderFinance(){
   const ordersP=ordersAll.filter(o=>{const d=(o.updatedAt||'').slice(0,10);return d>=from&&d<=to;});
   const trsP=trsAll.filter(t=>t.date>=from&&t.date<=to);
 
-  // MANTIQ:
-  // Buyurtma yopilganda 3 ta qadam:
-  // 1. Zapchasga pul SARFLANDI → jami puldan AYIR (sarfladik)
-  // 2. Yo'lkiraga pul SARFLANDI → jami puldan AYIR (qaytmaydi)
-  // 3. Mijoz to'ladi → Zapchast QAYTDI + Foyda TUSHDI → jami pulga QO'SH
   let runBal=balanceStart;
   let totZapChiq=0,totYol=0,totZapQayt=0,totFoy=0,totKirim=0,totChiqim=0;
   const logs=[];
 
   ordersP.slice().sort((a,b)=>(a.updatedAt||'').localeCompare(b.updatedAt||'')).forEach(o=>{
     const zap=o.zapchast||0,yol=o.yolkira||0,foy=o.foyda||0;
-
     if(zap>0){
       runBal-=zap; totZapChiq+=zap;
-      logs.push({tag:'CHIQIM',label:'🔩 Zapchast sarflandi — '+o.num,
-        note:o.clientName+' · Sotib olindi, keyinroq qaytadi',
-        amount:-zap,balance:runBal});
+      logs.push({tag:'CHIQIM',label:'🔩 Zapchast — '+o.num,note:o.clientName,amount:-zap,balance:runBal});
     }
     if(yol>0){
       runBal-=yol; totYol+=yol;
-      logs.push({tag:'QAYTMADI',label:"🚗 Yo'lkira sarflandi — "+o.num,
-        note:o.clientName+" · Bu pul qaytmaydi ❌",
-        amount:-yol,balance:runBal});
+      logs.push({tag:'QAYTMADI',label:"🚗 Yo'lkira — "+o.num,note:o.clientName+" · Qaytmadi ❌",amount:-yol,balance:runBal});
     }
     if(zap+foy>0){
       runBal+=zap+foy; totZapQayt+=zap; totFoy+=foy;
-      logs.push({tag:'KIRIM',label:"💰 Buyurtma to'lovi — "+o.num,
-        note:o.clientName+' · Foyda: '+fmtMoney(foy)+' + Zapchast qaytdi: '+fmtMoney(zap),
+      logs.push({tag:'KIRIM',label:"💰 To'lov — "+o.num,
+        note:o.clientName+' | Foyda: '+fmtMoney(foy)+' + Zapchast: '+fmtMoney(zap),
         amount:zap+foy,balance:runBal});
     }
   });
-
   trsP.forEach(t=>{
     if(t.type==='income'){
       runBal+=t.amount; totKirim+=t.amount;
-      logs.push({tag:'KIRIM',label:"📈 Qo'lda kirim",note:t.desc,amount:t.amount,balance:runBal});
+      logs.push({tag:'KIRIM',label:"📈 Kirim",note:t.desc,amount:t.amount,balance:runBal});
     } else {
       runBal-=t.amount; totChiqim+=t.amount;
-      logs.push({tag:'QAYTMADI',label:"💸 Qo'lda chiqim",note:t.desc+" · Qaytmaydi ❌",amount:-t.amount,balance:runBal});
+      logs.push({tag:'QAYTMADI',label:"💸 Chiqim",note:t.desc+" ❌",amount:-t.amount,balance:runBal});
     }
   });
 
   const balanceEnd=runBal;
   const sofFoyda=totFoy+totKirim-totYol-totChiqim;
   const qoldiq=balanceStart-totZapChiq-totYol-totChiqim;
-  const jami_all=sofFoyda+totZapQayt+qoldiq;
 
   document.getElementById('page-finance').innerHTML=`
 
-    <!-- KASSADAGI PUL -->
+    <!-- TEPADAGI ASOSIY: JAMI + TUGMALAR -->
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
       <div>
-        <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--text2);letter-spacing:.06em">
-          💰 KASSADAGI JAMI PUL</div>
-        <div class="money green-text" style="font-size:40px;font-weight:900;line-height:1.1">
-          ${fmtMoney(fin.balance||0)}</div>
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--text2)">
+          💰 KASSADAGI JAMI PUL
+        </div>
+        <div class="money green-text" style="font-size:42px;font-weight:900;line-height:1.1">
+          ${fmtMoney(fin.balance||0)}
+        </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <div style="display:flex;gap:3px;background:var(--card);padding:4px;border-radius:12px;border:1px solid var(--border)">
@@ -2312,170 +2302,102 @@ function renderFinance(){
           onchange="financeCustomDate=this.value;renderFinance()"
           style="padding:7px 10px;border:1.5px solid var(--purple);border-radius:8px;
           background:var(--card2);color:var(--text);font-size:13px;outline:none">`:''}
-        <div style="display:flex;gap:6px">
-          <button class="btn btn-sm btn-success" onclick="openAddIncome()">＋ Kirim</button>
-          <button class="btn btn-sm btn-danger"  onclick="openAddExpense()">— Chiqim</button>
-          <button class="btn btn-sm btn-ghost" onclick="resetBalance()" title="Balansni 0 ga tushirish"
-            style="border-color:rgba(239,68,68,.4);color:var(--red)">🗑 Balans</button>
-        </div>
+        <button class="btn btn-sm btn-success" onclick="openAddIncome()">＋ Kirim</button>
+        <button class="btn btn-sm btn-danger"  onclick="openAddExpense()">— Chiqim</button>
+        <button onclick="resetBalance()" class="btn btn-sm"
+          style="border:1.5px solid rgba(239,68,68,.4);color:var(--red);background:rgba(239,68,68,.08)">
+          🗑 0 ga tushir
+        </button>
       </div>
     </div>
 
-    <!-- 6 KATTA BLOK -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+    <!-- 5 TA KATTA RAQAM: JAMI | YOLKIRA | ZAPCHAST | FOYDA | SOF -->
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px">
 
-      <div style="background:rgba(148,163,184,.12);border:2px solid rgba(148,163,184,.5);border-radius:14px;padding:18px 20px">
-        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-bottom:6px">
-          1️⃣  ${label.toUpperCase()} BOSHIDAGI BALANS</div>
-        <div style="font-size:34px;font-weight:900;font-family:'Courier New',monospace;color:var(--text)">
-          ${fmtMoney(balanceStart)}</div>
-        <div style="font-size:11.5px;color:var(--text2);margin-top:5px">${from} kuni kassada bor edi</div>
+      <div style="background:rgba(16,185,129,.15);border:2px solid rgba(16,185,129,.6);
+        border-radius:13px;padding:16px 14px;text-align:center">
+        <div style="font-size:10px;font-weight:800;text-transform:uppercase;color:var(--green);margin-bottom:6px">
+          💰 JAMI BALANS</div>
+        <div class="money green-text" style="font-size:22px;font-weight:900">${fmtMoney(fin.balance||0)}</div>
+        <div style="font-size:10px;color:var(--text2);margin-top:4px">Kassada hozir</div>
       </div>
 
-      <div style="background:rgba(239,68,68,.12);border:2px solid rgba(239,68,68,.55);border-radius:14px;padding:18px 20px">
-        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--red);margin-bottom:6px">
-          2️⃣  QAYTMAYDIGAN XARAJATLAR ❌</div>
-        <div style="font-size:34px;font-weight:900;font-family:'Courier New',monospace;color:var(--red)">
-          − ${fmtMoney(totYol+totChiqim)}</div>
-        <div style="font-size:11.5px;color:var(--red);margin-top:5px;opacity:.85">
-          ${totYol>0?"🚗 Yo'lkira: "+fmtMoney(totYol):''}${totYol>0&&totChiqim>0?' + ':''}${totChiqim>0?'💸 Boshqa: '+fmtMoney(totChiqim):''}
-          ${totYol===0&&totChiqim===0?'Bu davrda yo\'q':''}
-        </div>
+      <div style="background:rgba(239,68,68,.12);border:2px solid rgba(239,68,68,.5);
+        border-radius:13px;padding:16px 14px;text-align:center">
+        <div style="font-size:10px;font-weight:800;text-transform:uppercase;color:var(--red);margin-bottom:6px">
+          🚗 YO'LKIRA</div>
+        <div class="money red-text" style="font-size:22px;font-weight:900">− ${fmtMoney(totYol+totChiqim)}</div>
+        <div style="font-size:10px;color:var(--text2);margin-top:4px">Qaytmaydigan ❌</div>
       </div>
 
-      <div style="background:rgba(59,130,246,.12);border:2px solid rgba(59,130,246,.55);border-radius:14px;padding:18px 20px">
-        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--blue);margin-bottom:6px">
-          3️⃣  QAYTGAN XARAJATLAR ↩️</div>
-        <div style="font-size:34px;font-weight:900;font-family:'Courier New',monospace;color:var(--blue)">
-          + ${fmtMoney(totZapQayt)}</div>
-        <div style="font-size:11.5px;color:var(--blue);margin-top:5px;opacity:.85">
-          🔩 Zapchast: sarfladik — mijoz to\'laganda qaytib keldi</div>
+      <div style="background:rgba(59,130,246,.12);border:2px solid rgba(59,130,246,.5);
+        border-radius:13px;padding:16px 14px;text-align:center">
+        <div style="font-size:10px;font-weight:800;text-transform:uppercase;color:var(--blue);margin-bottom:6px">
+          🔩 ZAPCHAST</div>
+        <div class="money blue-text" style="font-size:22px;font-weight:900">+ ${fmtMoney(totZapQayt)}</div>
+        <div style="font-size:10px;color:var(--text2);margin-top:4px">Qaytib keldi ↩️</div>
       </div>
 
-      <div style="background:rgba(16,185,129,.12);border:2px solid rgba(16,185,129,.55);border-radius:14px;padding:18px 20px">
-        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--green);margin-bottom:6px">
-          4️⃣  BUYURTMADAN OLINGAN FOYDA</div>
-        <div style="font-size:34px;font-weight:900;font-family:'Courier New',monospace;color:var(--green)">
-          + ${fmtMoney(totFoy+totKirim)}</div>
-        <div style="font-size:11.5px;color:var(--green);margin-top:5px;opacity:.85">
-          📈 Buyurtma: ${fmtMoney(totFoy)}${totKirim>0?' + 💵 Kirim: '+fmtMoney(totKirim):''}</div>
+      <div style="background:rgba(16,185,129,.12);border:2px solid rgba(16,185,129,.5);
+        border-radius:13px;padding:16px 14px;text-align:center">
+        <div style="font-size:10px;font-weight:800;text-transform:uppercase;color:var(--green);margin-bottom:6px">
+          📈 FOYDA</div>
+        <div class="money green-text" style="font-size:22px;font-weight:900">+ ${fmtMoney(totFoy+totKirim)}</div>
+        <div style="font-size:10px;color:var(--text2);margin-top:4px">Buyurtmadan</div>
       </div>
 
       <div style="background:${sofFoyda>=0?'rgba(124,58,237,.18)':'rgba(239,68,68,.15)'};
-        border:2px solid ${sofFoyda>=0?'rgba(124,58,237,.65)':'rgba(239,68,68,.6)'};border-radius:14px;padding:18px 20px">
-        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
+        border:2px solid ${sofFoyda>=0?'rgba(124,58,237,.6)':'rgba(239,68,68,.6)'};
+        border-radius:13px;padding:16px 14px;text-align:center">
+        <div style="font-size:10px;font-weight:800;text-transform:uppercase;
           color:${sofFoyda>=0?'var(--purple2)':'var(--red)'};margin-bottom:6px">
-          5️⃣  SOF FOYDA  (Foyda − Qaytmaydigan)</div>
-        <div style="font-size:34px;font-weight:900;font-family:'Courier New',monospace;
+          💎 SOF FOYDA</div>
+        <div class="money" style="font-size:22px;font-weight:900;
           color:${sofFoyda>=0?'var(--purple2)':'var(--red)'}">
           ${sofFoyda>=0?'+ ':''}${fmtMoney(sofFoyda)}</div>
-        <div style="font-size:11.5px;margin-top:5px;opacity:.85;color:${sofFoyda>=0?'var(--purple2)':'var(--red)'}">
-          ${fmtMoney(totFoy+totKirim)} − ${fmtMoney(totYol+totChiqim)} = ${fmtMoney(sofFoyda)}</div>
-      </div>
-
-      <div style="background:rgba(16,185,129,.18);border:3px solid rgba(16,185,129,.7);border-radius:14px;padding:18px 20px">
-        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--green);margin-bottom:6px">
-          6️⃣  JAMI PULLAR HOZIR</div>
-        <div style="font-size:38px;font-weight:900;font-family:'Courier New',monospace;color:var(--green)">
-          ${fmtMoney(balanceEnd)}</div>
-        <div style="font-size:11.5px;color:var(--green);margin-top:5px;opacity:.85">
-          ${fmtMoney(sofFoyda)} sof + ${fmtMoney(totZapQayt)} zapchast + ${fmtMoney(qoldiq)} qoldiq</div>
+        <div style="font-size:10px;color:var(--text2);margin-top:4px">Foyda − Yo'lkira</div>
       </div>
 
     </div>
 
-    <!-- TAFSILOT -->
-    <div class="card" style="margin-bottom:12px">
-      <div style="padding:12px 20px;border-bottom:1px solid var(--border)">
-        <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text2)">
-          📋 ${label} HISOB TAFSILOTI</div>
-      </div>
-      <div style="padding:14px 20px;display:flex;flex-direction:column;gap:5px;font-size:13px">
-        <div style="display:flex;justify-content:space-between;padding:9px 12px;background:var(--card2);border-radius:8px">
-          <span>📌 Boshlangich balans</span><b class="money">${fmtMoney(balanceStart)}</b></div>
-        ${totZapChiq>0?`<div style="display:flex;justify-content:space-between;padding:9px 12px;background:rgba(245,158,11,.08);border-radius:8px;border-left:3px solid var(--yellow)">
-          <span style="color:var(--yellow)">🔩 Zapchasga sarflandi</span><span class="money yellow-text">− ${fmtMoney(totZapChiq)}</span></div>`:''}
-        ${totYol>0?`<div style="display:flex;justify-content:space-between;padding:9px 12px;background:rgba(239,68,68,.08);border-radius:8px;border-left:3px solid var(--red)">
-          <span style="color:var(--red)">🚗 Yo'lkira (qaytmaydi)</span><span class="money red-text">− ${fmtMoney(totYol)}</span></div>`:''}
-        ${totChiqim>0?`<div style="display:flex;justify-content:space-between;padding:9px 12px;background:rgba(239,68,68,.06);border-radius:8px;border-left:3px solid rgba(239,68,68,.4)">
-          <span style="color:var(--red)">💸 Boshqa xarajat (qaytmaydi)</span><span class="money red-text">− ${fmtMoney(totChiqim)}</span></div>`:''}
-        <div style="display:flex;justify-content:space-between;padding:9px 12px;background:rgba(148,163,184,.1);border-radius:8px;border-left:3px solid rgba(148,163,184,.5)">
-          <span style="color:var(--text2)">= QOLDIQ (sarflangandan keyin)</span><b class="money">${fmtMoney(qoldiq)}</b></div>
-        ${totFoy+totKirim>0?`<div style="display:flex;justify-content:space-between;padding:9px 12px;background:rgba(16,185,129,.08);border-radius:8px;border-left:3px solid var(--green)">
-          <span style="color:var(--green)">📈 Foyda tushdi${totKirim>0?' + Kirim':''}</span><span class="money green-text">+ ${fmtMoney(totFoy+totKirim)}</span></div>`:''}
-        ${totZapQayt>0?`<div style="display:flex;justify-content:space-between;padding:9px 12px;background:rgba(59,130,246,.08);border-radius:8px;border-left:3px solid var(--blue)">
-          <span style="color:var(--blue)">🔩 Zapchast qaytib keldi ↩️</span><span class="money blue-text">+ ${fmtMoney(totZapQayt)}</span></div>`:''}
-        <div style="display:flex;justify-content:space-between;padding:12px 14px;background:rgba(16,185,129,.15);border:2px solid rgba(16,185,129,.5);border-radius:10px;margin-top:4px">
-          <span style="font-weight:800;font-size:14px">💰 JAMI YAKUNIY:</span>
-          <span class="money green-text" style="font-weight:900;font-size:22px">${fmtMoney(balanceEnd)}</span></div>
-        <div style="display:flex;justify-content:space-between;padding:11px 14px;background:rgba(124,58,237,.15);border:2px solid rgba(124,58,237,.45);border-radius:10px">
-          <span style="font-weight:700;color:var(--purple2)">💎 SOF FOYDA:</span>
-          <span class="money" style="font-weight:900;font-size:20px;color:var(--purple2)">
-            ${sofFoyda>=0?'+ ':''}${fmtMoney(sofFoyda)}</span></div>
-      </div>
-    </div>
-
-    <!-- LOG -->
-    ${logs.length>0?`
+    <!-- BUYURTMALAR JADVALI -->
     <div class="card">
       <div style="padding:12px 20px;border-bottom:1px solid var(--border)">
-        <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text2)">
-          📜 ${label} BARCHA HARAKATLAR</div>
+        <div style="font-weight:700;font-size:14px">
+          📋 ${label} buyurtmalar
+          <span style="font-size:12px;color:var(--text2);font-weight:400;margin-left:8px">
+            (${ordersP.length} ta)
+          </span>
+        </div>
       </div>
-      ${logs.map(l=>`
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 20px;border-bottom:1px solid rgba(45,45,80,.3)">
-        <span style="font-size:10px;font-weight:800;padding:3px 7px;border-radius:10px;flex-shrink:0;
-          background:${l.tag==='KIRIM'?'rgba(16,185,129,.2)':l.tag==='QAYTMADI'?'rgba(239,68,68,.2)':'rgba(245,158,11,.2)'};
-          color:${l.tag==='KIRIM'?'var(--green)':l.tag==='QAYTMADI'?'var(--red)':'var(--yellow)'}">${l.tag}</span>
-        <div style="flex:1">
-          <div style="font-size:13px;font-weight:600">${l.label}</div>
-          <div style="font-size:11px;color:var(--text2)">${l.note}</div>
-        </div>
-        <div style="text-align:right">
-          <div class="money" style="font-weight:800;font-size:15px;color:${l.amount>=0?'var(--green)':'var(--red)'}">
-            ${l.amount>=0?'+':''}${fmtMoney(Math.abs(l.amount))}</div>
-          <div style="font-size:11px;color:var(--text2)">→ ${fmtMoney(l.balance)}</div>
-        </div>
-      </div>`).join('')}
-    </div>`:`<div class="card"><div class="empty-state">
-      <div class="empty-icon">💰</div>
-      <div class="empty-title">Bu davrda harakat yo'q</div></div></div>`}
+      ${ordersP.length===0?`<div class="empty-state">
+        <div class="empty-icon">📋</div>
+        <div class="empty-title">Bu davrda buyurtma yo'q</div>
+      </div>`:`
+      <div class="table-wrap" style="border:none;border-radius:0">
+      <table><thead><tr>
+        <th>Raqam</th><th>Mijoz</th>
+        <th style="color:var(--green)">Foyda +</th>
+        <th style="color:var(--blue)">Zapchast ↩️</th>
+        <th style="color:var(--red)">Yo'lkira ❌</th>
+        <th>Jami</th><th>Sana</th>
+      </tr></thead><tbody>
+      ${ordersP.slice().sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt))
+        .map(o=>`<tr>
+        <td style="font-family:monospace;font-weight:700;color:var(--purple2);font-size:12px">${o.num}</td>
+        <td style="font-size:12px">${o.clientName}</td>
+        <td class="money green-text" style="font-size:12px">
+          ${(o.foyda||0)>0?'+ '+fmtMoney(o.foyda):'—'}</td>
+        <td class="money blue-text" style="font-size:12px">
+          ${(o.zapchast||0)>0?'+ '+fmtMoney(o.zapchast):'—'}</td>
+        <td class="money red-text" style="font-size:12px">
+          ${(o.yolkira||0)>0?'− '+fmtMoney(o.yolkira):'—'}</td>
+        <td class="money" style="font-weight:700;font-size:12px">${fmtMoney(o.finalPrice||0)}</td>
+        <td style="font-size:11px;color:var(--text2)">${fmtDateOnly(o.updatedAt)}</td>
+      </tr>`).join('')}
+      </tbody></table></div>`}
+    </div>
   `;
-}
-
-// ================================================================
-//  BALANS VA ARXIVNI TOZALASH
-// ================================================================
-function resetBalance(){
-  if(!confirm('⚠️ Balans va barcha tranzaksiyalar 0 ga tushuriladi!\n\nDavom etasizmi?')) return;
-  DB.setObj('finance',{balance:0,totalIncome:0,totalExpense:0,initBalance:0});
-  DB.set('transactions',[]);
-  toast('✅ Balans 0 ga tushirildi','info');
-  updateTopbarBalance();
-  if(currentPage==='finance') renderFinance();
-  if(currentPage==='dashboard') renderDashboard();
-}
-
-function resetArchive(){
-  if(!confirm('⚠️ Barcha yopilgan buyurtmalar (arxiv) o\'chiriladi!\n\nDavom etasizmi?')) return;
-  const orders = DB.get('orders').filter(o=>
-    !(['delivered','cancelled'].includes(o.status) || o.archived)
-  );
-  DB.set('orders', orders);
-  toast('✅ Arxiv tozalandi','info');
-  if(currentPage==='archive') renderArchive();
-  if(currentPage==='dashboard') renderDashboard();
-  updateOverdueAlert();
-}
-
-function resetAll(){
-  if(!confirm('⚠️⚠️ BARCHA MA\'LUMOTLAR O\'CHIRILADI!\nBuyurtmalar, Arxiv, Balans, Tranzaksiyalar!\n\nRostan davom etasizmi?')) return;
-  if(!confirm('Ikkinchi tasdiqlash: Hamma narsa 0 ga tushadi. Rozimisiz?')) return;
-  DB.set('orders',[]);
-  DB.set('transactions',[]);
-  DB.setObj('finance',{balance:0,totalIncome:0,totalExpense:0,initBalance:0});
-  toast('✅ Hammasi tozalandi','info');
-  refreshAll();
 }
 
 function openAddIncome(){
