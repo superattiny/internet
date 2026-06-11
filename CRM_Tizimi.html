@@ -302,6 +302,18 @@ tbody tr:last-child td{border-bottom:none}
           font-weight:700;color:var(--green);cursor:pointer" onclick="showPage('finance')">
           💰 <span id="topbarBalanceVal">0</span>
         </div>
+        <!-- XABAR TUGMASI: faqat qabul kutilayotgan buyurtma bo'lsa ko'rinadi -->
+        <div id="xabarTugma" style="display:none;position:relative;cursor:pointer"
+          onclick="showPage('finance')" title="Yangi to'lov xabarlari">
+          <div style="width:36px;height:36px;background:rgba(245,158,11,.2);
+            border:1.5px solid rgba(245,158,11,.5);border-radius:10px;
+            display:flex;align-items:center;justify-content:center;font-size:18px">
+            🔔
+          </div>
+          <span id="xabarCount" style="position:absolute;top:-5px;right:-5px;
+            background:var(--red);color:white;font-size:10px;font-weight:800;
+            padding:1px 5px;border-radius:10px;min-width:16px;text-align:center">0</span>
+        </div>
         <button class="btn btn-sm btn-ghost" onclick="refreshAll()" title="Yangilash">🔄</button>
       </div>
     </div>
@@ -534,6 +546,20 @@ function updateOverdueAlert(){
   } else {
     el.style.display='none';
     badge.style.display='none';
+  }
+  // Xabar tugmasini yangilash
+  const qabul=DB.get('orders').filter(o=>o.qabulKutilmoqda&&!o.isPaid);
+  const xabarBtn=document.getElementById('xabarTugma');
+  const xabarCnt=document.getElementById('xabarCount');
+  if(xabarBtn&&xabarCnt){
+    if(qabul.length>0){
+      xabarBtn.style.display='block';
+      xabarCnt.textContent=qabul.length;
+      // Titratish effekti
+      xabarBtn.style.animation='pulse-dot 1.5s ease infinite';
+    } else {
+      xabarBtn.style.display='none';
+    }
   }
 }
 </script>
@@ -1484,56 +1510,31 @@ function openYakunlashModal(id){
         </label>
       </div>
 
-      <!-- TUZATILDI: To'lov qismi -->
+      <!-- TUZATILDI: Faqat SUMMA -->
       <div id="qism_tuzatildi" style="display:none">
-  <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text2);margin-bottom:12px">
-    💳 To'lov ma'lumotlari
-  </div>
-  <div class="form-group">
-    <label>Umumiy kirim — mijoz to'lagan summa <span style="color:var(--red)">*</span></label>
-    <input type="number" id="yakunSumma" placeholder="250000" min="0"
-      value="${o.estimatedPrice||''}"
-      style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;
-      background:var(--card2);color:var(--text);font-size:16px;font-weight:700;outline:none;font-family:inherit">
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
-    <div class="form-group">
-      <label style="font-size:11px;color:var(--green)">📈 Foyda (ixtiyoriy)</label>
-      <input type="number" id="yakunFoyda" placeholder="0" min="0"
-        style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:7px;
-        background:var(--card2);color:var(--text);font-size:13px;outline:none;font-family:inherit;box-sizing:border-box">
-    </div>
-    <div class="form-group">
-      <label style="font-size:11px;color:var(--yellow)">🚗 Yo'lkira (ixtiyoriy)</label>
-      <input type="number" id="yakunYolkira" placeholder="0" min="0"
-        style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:7px;
-        background:var(--card2);color:var(--text);font-size:13px;outline:none;font-family:inherit;box-sizing:border-box">
-    </div>
-    <div class="form-group">
-      <label style="font-size:11px;color:var(--blue)">🔩 Zapchast (ixtiyoriy)</label>
-      <input type="number" id="yakunZapchast" placeholder="0" min="0"
-        style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:7px;
-        background:var(--card2);color:var(--text);font-size:13px;outline:none;font-family:inherit;box-sizing:border-box">
-    </div>
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">
-    <div class="form-group">
-      <label>To'lov usuli</label>
-      <select id="yakunPayMethod" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);
-        border-radius:8px;background:var(--card2);color:var(--text);font-size:14px;outline:none;font-family:inherit">
-        <option value="cash">💵 Naqd pul</option>
-        <option value="card">💳 Plastik karta</option>
-        <option value="transfer">🏦 Bank o'tkazmasi</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label>Izoh</label>
-      <input id="yakunIzoh" placeholder="Qo'shimcha..."
-        style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;
-        background:var(--card2);color:var(--text);font-size:14px;outline:none;font-family:inherit">
-    </div>
-  </div>
-</div>
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;
+          color:var(--text2);margin-bottom:12px">💳 To'lov summasi</div>
+        <div class="form-group">
+          <label style="font-size:15px;font-weight:700">
+            Mijoz to'lagan summa <span style="color:var(--red)">*</span>
+          </label>
+          <input type="number" id="yakunSumma" placeholder="0" min="0"
+            value="${o.estimatedPrice||''}"
+            style="width:100%;padding:14px 16px;border:2px solid var(--purple);border-radius:10px;
+            background:var(--card2);color:var(--text);font-size:26px;font-weight:900;
+            outline:none;font-family:monospace;text-align:center">
+        </div>
+        <div class="form-group">
+          <label>To'lov usuli</label>
+          <select id="yakunPayMethod" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);
+            border-radius:8px;background:var(--card2);color:var(--text);font-size:14px;
+            outline:none;font-family:inherit">
+            <option value="cash">💵 Naqd pul</option>
+            <option value="card">💳 Plastik karta</option>
+            <option value="transfer">🏦 Bank o'tkazmasi</option>
+          </select>
+        </div>
+      </div>
 
       <!-- TUZATILMADI: Sabab qismi -->
       <div id="qism_tuzatilmadi" style="display:none">
@@ -1650,11 +1651,11 @@ function saveYakunlash(orderId){
   if(natija==='tuzatildi'){
     // ── Tuzatildi: 3 ta maydonni tekshirish ──────────────
     const summa    = parseFloat(document.getElementById('yakunSumma').value)||0;
-    const foyda    = parseFloat(document.getElementById('yakunFoyda').value)||0;
-    const yolkira  = parseFloat(document.getElementById('yakunYolkira').value)||0;
-    const zapchast = parseFloat(document.getElementById('yakunZapchast').value)||0;
+    const foyda    = 0;
+    const yolkira  = 0;
+    const zapchast = 0;
     const method   = document.getElementById('yakunPayMethod').value;
-    const izoh     = document.getElementById('yakunIzoh').value.trim();
+    const izoh     = '';
 
     if(!summa||summa<=0){toast("Umumiy kirim summasi kiritilishi shart!",'error');return;}
 
@@ -1680,8 +1681,14 @@ function saveYakunlash(orderId){
     DB.set('orders',orders);
     closeModal('modalYakunlash');
 
-    // "Qabul kutilmoqda" — admin tasdiqlashi kerak
-    setTimeout(()=>openQabulModal(orderId), 300);
+    // Darhol xabar tugmasini yangilash
+    updateOverdueAlert();
+
+    // Balans bo'limiga yo'naltirish — xabarni ko'rish uchun
+    toast('✅ Buyurtma yopildi! Balans bo\'limida to\'lovni tasdiqlang 💰','info');
+    setTimeout(()=>{
+      showPage('finance');
+    }, 1500);
 
   } else {
     // ── Tuzatilmadi ──────────────────────────────────────
