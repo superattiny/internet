@@ -2615,6 +2615,44 @@ function confirmKirimChiqim(orderId){
   if(currentPage==='finance') renderFinance();
 }
 
+// ================================================================
+//  BALANS, ARXIV TOZALASH
+// ================================================================
+function resetBalance(){
+  if(!confirm('⚠️ Balans va barcha tranzaksiyalar 0 ga tushuriladi!\nDavom etasizmi?'))return;
+  localStorage.removeItem('tvcrm_finance');
+  localStorage.removeItem('tvcrm_transactions');
+  DB.setObj('finance',{balance:0,totalIncome:0,totalExpense:0,initBalance:0});
+  DB.set('transactions',[]);
+  toast('✅ Balans 0 ga tushirildi','info');
+  updateTopbarBalance();
+  if(currentPage==='finance')renderFinance();
+  if(currentPage==='dashboard')renderDashboard();
+}
+
+function resetArchive(){
+  if(!confirm("⚠️ Barcha yopilgan buyurtmalar (arxiv) o'chiriladi!\nDavom etasizmi?"))return;
+  const active=DB.get('orders').filter(o=>
+    !(['delivered','cancelled'].includes(o.status)||o.archived)
+  );
+  DB.set('orders',active);
+  toast('✅ Arxiv tozalandi','info');
+  if(currentPage==='archive')renderArchive();
+  if(currentPage==='dashboard')renderDashboard();
+  updateOverdueAlert();
+}
+
+function resetAll(){
+  if(!confirm("⚠️⚠️ BARCHA MA'LUMOTLAR O'CHIRILADI!\nRostan davom etasizmi?"))return;
+  if(!confirm('Ikkinchi tasdiqlash: Hamma narsa 0 ga tushadi. Rozimisiz?'))return;
+  ['tvcrm_orders','tvcrm_transactions','tvcrm_finance','tvcrm_clients','tvcrm_chats','tvcrm_reminders'].forEach(k=>{
+    localStorage.removeItem(k);
+  });
+  DB.setObj('finance',{balance:0,totalIncome:0,totalExpense:0,initBalance:0});
+  toast('✅ Hammasi tozalandi','info');
+  refreshAll();
+}
+
 function openAddIncome(){
   openModal('modalIncome',`
     <div class="modal-header"><div class="modal-title">📈 Kirim qo'shish</div>
