@@ -2386,6 +2386,10 @@ function renderFinance(){
           background:var(--card2);color:var(--text);font-size:13px;outline:none">`:''}
         <button class="btn btn-sm btn-success" onclick="openAddIncome()">＋ Kirim</button>
         <button class="btn btn-sm btn-danger"  onclick="openAddExpense()">— Chiqim</button>
+        <button class="btn btn-sm" onclick="openOylikModal()"
+          style="background:rgba(16,185,129,.15);color:var(--green);border:1.5px solid rgba(16,185,129,.4);font-weight:700">
+          💵 Oylik berish
+        </button>
         <button onclick="resetBalance()" class="btn btn-sm"
           style="border:1.5px solid rgba(239,68,68,.4);color:var(--red);background:rgba(239,68,68,.08)">
           🗑 0 ga tushir
@@ -2913,6 +2917,112 @@ function resetAll(){
   DB.setObj('finance',{balance:0,totalIncome:0,totalExpense:0,initBalance:0});
   toast('✅ Hammasi tozalandi','info');
   refreshAll();
+}
+
+// ================================================================
+//  OYLIK BERISH
+// ================================================================
+function openOylikModal(){
+  const workers=DB.get('users').filter(u=>u.role!=='admin'&&!u.fired&&u.active);
+  openModal('modalOylik',`
+    <div class="modal-header">
+      <div class="modal-title">💵 Oylik berish</div>
+      <button class="modal-close" onclick="closeModal('modalOylik')">✕</button>
+    </div>
+    <div class="modal-body">
+      ${workers.length===0?`<div class="empty-state">
+        <div class="empty-icon">👷</div>
+        <div class="empty-title">Faol ishchilar yo'q</div></div>`:`
+
+      <!-- Ishchilar balansi -->
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+        ${workers.map(w=>`
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;
+          padding:12px 14px;background:var(--card2);border-radius:10px;
+          border-left:3px solid ${(w.balance||0)>0?'var(--green)':'var(--border)'}">
+          <div>
+            <div style="font-weight:700;font-size:13px">${w.name}</div>
+            <div style="font-size:11px;color:var(--text2)">${w.role==='master'?'👷 Usta':'🖥 Operator'} · ${w.commission||0}% komisyon</div>
+          </div>
+          <div style="text-align:right">
+            <div class="money ${(w.balance||0)>0?'green-text':'text-muted'}" style="font-weight:800;font-size:16px">
+              ${fmtMoney(w.balance||0)}</div>
+            <div style="font-size:10px;color:var(--text2)">Balansda</div>
+          </div>
+          <div>
+            <input type="number" id="oylik_${w.id}" placeholder="0" min="0"
+              value="${w.balance>0?Math.floor(w.balance):''}"
+              style="width:120px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;
+              background:var(--card);color:var(--text);font-size:14px;font-weight:700;
+              outline:none;font-family:monospace;text-align:right">
+          </div>
+        </div>`).join('')}
+      </div>
+
+      <!-- To'lov usuli -->
+      <div class="form-group">
+        <label>To'lov usuli</label>
+        <select id="oylikMethod"
+          style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;
+          background:var(--card2);color:var(--text);font-size:13px;outline:none;font-family:inherit">
+          <option value="cash">💵 Naqd pul</option>
+          <option value="card">💳 Plastik karta</option>
+          <option value="transfer">🏦 Bank o'tkazmasi</option>
+        </select>
+      </div>
+
+      <div style="padding:10px 14px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);
+        border-radius:8px;font-size:12px;color:var(--yellow)">
+        ⚠️ Faqat summa kiritilgan ishchilarga to'lov amalga oshiriladi.
+        Balansdan ham, kassadan ham ayiriladi.
+      </div>`}
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalOylik')">Bekor</button>
+      ${workers.length>0?`<button class="btn btn-success" onclick="saveOylik()">💵 To'lovni amalga oshirish</button>`:''}
+    </div>
+  `,'modal-lg');
+}
+
+function saveOylik(){
+  const workers=DB.get('users').filter(u=>u.role!=='admin'&&!u.fired&&u.active);
+  const method=document.getElementById('oylikMethod').value;
+  const fin=DB.getObj('finance');
+  const tr=DB.get('transactions');
+  let totalTolandi=0;
+  let tolananlar=[];
+
+  workers.forEach(w=>{
+    const sum=parseFloat(document.getElementById('oylik_'+w.id)?.value)||0;
+    if(sum<=0)return;
+    if(sum>w.balance){
+      toast(`⚠️ ${w.name}: Balansdan ko'p! (balans: ${fmtMoney(w.balance)})`, 'error');
+      return;
+    }
+    w.balance=(w.balance||0)-sum;
+    fin.balance=(fin.balance||0)-sum;
+    fin.totalExpense=(fin.totalExpense||0)+sum;
+    tr.push({id:nextId(tr),type:'expense',amount:sum,
+      desc:`💵 Oylik: ${w.name}`,
+      turi:'oylik',orderId:null,date:today(),by:currentUser.name});
+    totalTolandi+=sum;
+    tolananlar.push(`${w.name}: ${fmtMoney(sum)}`);
+  });
+
+  if(totalTolandi===0){
+    toast('Hech qanday summa kiritilmadi!','error');
+    return;
+  }
+
+  DB.set('users',workers.concat(DB.get('users').filter(u=>u.role==='admin'||u.fired||!u.active)));
+  DB.setObj('finance',fin);
+  DB.set('transactions',tr);
+
+  closeModal('modalOylik');
+  toast(`✅ Oylik to'landi: ${fmtMoney(totalTolandi)} (${tolananlar.length} ishchi)`);
+  updateTopbarBalance();
+  if(currentPage==='finance')renderFinance();
+  if(currentPage==='workers')renderWorkers();
 }
 
 function openAddIncome(){
