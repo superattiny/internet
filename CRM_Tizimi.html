@@ -2820,40 +2820,57 @@ function selectChiqimTuri(turi){
 }
 
 function saveExpense(){
-  const amount=parseFloat(document.getElementById('exAmount').value)||0;
   const desc=document.getElementById('exDesc').value.trim();
-  const turi=document.querySelector('input[name="chiqimTuri"]:checked')?.value||'qaytmaydi';
+  const qaytmaydi=parseFloat(document.getElementById('exQaytmaydi').value)||0;
+  const qaytadi=parseFloat(document.getElementById('exQaytadi').value)||0;
   const orderId=document.getElementById('exOrderId').value;
-  if(!amount||amount<=0){toast('Summa kiritilishi shart!','error');return;}
-  if(!desc){toast('Chiqim nomi kiritilishi shart!','error');return;}
 
-  if(orderId){
-    const orders=DB.get('orders');
-    const o=orders.find(x=>x.id==orderId);
-    if(o){
-      if(turi==='qaytadi') o.zapchast=(o.zapchast||0)+amount;
-      else o.yolkira=(o.yolkira||0)+amount;
-      o.chiqimlar=o.chiqimlar||[];
-      o.chiqimlar.push({nom:desc,sum:amount,turi,date:today(),by:currentUser.name});
-      DB.set('orders',orders);
-    }
+  if(!desc){toast('Chiqim nomi kiritilishi shart!','error');return;}
+  if(qaytmaydi===0&&qaytadi===0){
+    toast('Kamida bitta summani kiriting!','error');return;
   }
 
   const fin=DB.getObj('finance');
-  fin.balance=(fin.balance||0)-amount;
-  fin.totalExpense=(fin.totalExpense||0)+amount;
-  DB.setObj('finance',fin);
-
-  const allOrders=DB.get('orders');
   const tr=DB.get('transactions');
-  tr.push({
-    id:nextId(tr),type:'expense',amount,
-    desc:(turi==='qaytadi'?'🔩 ':'🚗 ')+desc+(orderId?' ('+allOrders.find(x=>x.id==orderId)?.num+')':''),
-    turi,orderId:orderId||null,date:today(),by:currentUser.name
-  });
+  const allOrders=DB.get('orders');
+  const o=orderId?allOrders.find(x=>x.id==orderId):null;
+
+  // QAYTMAYDI — balansdan ayiriladi
+  if(qaytmaydi>0){
+    fin.balance=(fin.balance||0)-qaytmaydi;
+    fin.totalExpense=(fin.totalExpense||0)+qaytmaydi;
+    tr.push({id:nextId(tr),type:'expense',amount:qaytmaydi,
+      desc:'❌ '+desc+(o?' ('+o.num+')':''),
+      turi:'qaytmaydi',orderId:orderId||null,date:today(),by:currentUser.name});
+    if(o){o.yolkira=(o.yolkira||0)+qaytmaydi;}
+  }
+
+  // QAYTADI — balansdan ayiriladi (lekin keyinroq qaytadi)
+  if(qaytadi>0){
+    fin.balance=(fin.balance||0)-qaytadi;
+    fin.totalExpense=(fin.totalExpense||0)+qaytadi;
+    tr.push({id:nextId(tr),type:'expense',amount:qaytadi,
+      desc:'↩️ '+desc+(o?' ('+o.num+')':''),
+      turi:'qaytadi',orderId:orderId||null,date:today(),by:currentUser.name});
+    if(o){o.zapchast=(o.zapchast||0)+qaytadi;}
+  }
+
+  if(o){
+    o.chiqimlar=o.chiqimlar||[];
+    if(qaytmaydi>0) o.chiqimlar.push({nom:desc,sum:qaytmaydi,turi:'qaytmaydi',date:today(),by:currentUser.name});
+    if(qaytadi>0)   o.chiqimlar.push({nom:desc,sum:qaytadi,turi:'qaytadi',date:today(),by:currentUser.name});
+    const orders=allOrders;
+    DB.set('orders',orders);
+  }
+
+  DB.setObj('finance',fin);
   DB.set('transactions',tr);
   closeModal('modalExpense');
-  toast(turi==='qaytadi'?'🔩 Zapchast xarajat saqlandi':'🚗 Chiqim saqlandi (qaytmaydi)','info');
+
+  let msg='💸 Saqlandi:';
+  if(qaytmaydi>0) msg+=' ❌ '+fmtMoney(qaytmaydi);
+  if(qaytadi>0)   msg+=' ↩️ '+fmtMoney(qaytadi);
+  toast(msg,'info');
   updateTopbarBalance();
   if(currentPage==='finance')renderFinance();
   if(currentPage==='dashboard')renderDashboard();
@@ -2922,51 +2939,86 @@ function openAddExpense(){
       <button class="modal-close" onclick="closeModal('modalExpense')">✕</button>
     </div>
     <div class="modal-body">
+
+      <!-- Chiqim nomi -->
       <div class="form-group">
-        <label style="font-size:14px;font-weight:700">Chiqim summasi (so'm) <span style="color:var(--red)">*</span></label>
-        <input type="number" id="exAmount" placeholder="50000" min="0"
-          style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;
-          background:var(--card2);color:var(--text);font-size:18px;font-weight:700;outline:none;font-family:monospace">
-      </div>
-      <div class="form-group">
-        <label>Chiqim nomi <span style="color:var(--red)">*</span></label>
-        <input id="exDesc" placeholder="Yo'lkira, ovqat, material..."
+        <label style="font-weight:700">Chiqim nomi <span style="color:var(--red)">*</span></label>
+        <input id="exDesc" placeholder="Masalan: Yo'lkira + Zapchast..."
           style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;
-          background:var(--card2);color:var(--text);font-size:13px;outline:none;font-family:inherit">
+          background:var(--card2);color:var(--text);font-size:14px;outline:none;font-family:inherit">
       </div>
-      <div class="form-group">
-        <label>Bu pul qaytadimi?</label>
-        <div style="display:flex;gap:10px">
-          <label id="lblQaytmaydi" onclick="selectChiqimTuri('qaytmaydi')"
-            style="flex:1;display:flex;align-items:center;gap:10px;padding:12px 14px;
-            border:2px solid var(--red);border-radius:10px;cursor:pointer;background:rgba(239,68,68,.1)">
-            <input type="radio" name="chiqimTuri" value="qaytmaydi" checked style="accent-color:var(--red)">
-            <div><div style="font-weight:700;color:var(--red)">❌ Qaytmaydi</div>
-            <div style="font-size:11px;color:var(--text2)">Yo'lkira, ovqat, kommunal</div></div>
-          </label>
-          <label id="lblQaytadi" onclick="selectChiqimTuri('qaytadi')"
-            style="flex:1;display:flex;align-items:center;gap:10px;padding:12px 14px;
-            border:2px solid var(--border);border-radius:10px;cursor:pointer">
-            <input type="radio" name="chiqimTuri" value="qaytadi" style="accent-color:var(--blue)">
-            <div><div style="font-weight:700;color:var(--blue)">↩️ Qaytadi</div>
-            <div style="font-size:11px;color:var(--text2)">Zapchast, material</div></div>
-          </label>
+
+      <!-- Ikkita summa maydoni -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:4px">
+
+        <!-- QAYTMAYDI -->
+        <div style="background:rgba(239,68,68,.08);border:2px solid rgba(239,68,68,.4);
+          border-radius:12px;padding:14px">
+          <div style="font-size:12px;font-weight:800;text-transform:uppercase;
+            color:var(--red);margin-bottom:8px;letter-spacing:.05em">
+            ❌ QAYTMAYDI</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:8px">
+            Yo'lkira, ovqat, kommunal — balansdan chiqadi, qaytmaydi</div>
+          <input type="number" id="exQaytmaydi" placeholder="0" min="0"
+            style="width:100%;padding:10px;border:1.5px solid rgba(239,68,68,.4);border-radius:8px;
+            background:var(--card2);color:var(--red);font-size:20px;font-weight:900;
+            outline:none;font-family:monospace;text-align:center;box-sizing:border-box">
+          <div style="font-size:10px;color:var(--red);margin-top:5px;text-align:center">
+            Jami balansdan ayiriladi</div>
+        </div>
+
+        <!-- QAYTADI -->
+        <div style="background:rgba(59,130,246,.08);border:2px solid rgba(59,130,246,.4);
+          border-radius:12px;padding:14px">
+          <div style="font-size:12px;font-weight:800;text-transform:uppercase;
+            color:var(--blue);margin-bottom:8px;letter-spacing:.05em">
+            ↩️ QAYTADI</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:8px">
+            Zapchast, material — sarflanadi, lekin mijoz qaytaradi</div>
+          <input type="number" id="exQaytadi" placeholder="0" min="0"
+            style="width:100%;padding:10px;border:1.5px solid rgba(59,130,246,.4);border-radius:8px;
+            background:var(--card2);color:var(--blue);font-size:20px;font-weight:900;
+            outline:none;font-family:monospace;text-align:center;box-sizing:border-box">
+          <div style="font-size:10px;color:var(--blue);margin-top:5px;text-align:center">
+            Buyurtma yopilganda balansga qaytadi</div>
         </div>
       </div>
+
+      <!-- Jami ko'rsatgich -->
+      <div style="padding:10px 14px;background:var(--card2);border-radius:8px;
+        margin-bottom:12px;font-size:13px;display:flex;justify-content:space-between">
+        <span style="color:var(--text2)">Jami chiqim:</span>
+        <span class="money" style="font-weight:700" id="exJami">0 so'm</span>
+      </div>
+
+      <!-- Buyurtmaga biriktirish -->
       <div class="form-group">
-        <label>Buyurtmaga biriktirish (ixtiyoriy)</label>
+        <label>Buyurtmaga biriktirish <span style="font-size:11px;color:var(--text2)">(ixtiyoriy)</span></label>
         <select id="exOrderId"
           style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;
           background:var(--card2);color:var(--text);font-size:13px;outline:none;font-family:inherit">
-          <option value="">— Umumiy xarajat —</option>
+          <option value="">— Umumiy xarajat (buyurtmasiz) —</option>
           ${orders.map(o=>`<option value="${o.id}">${o.num} — ${o.clientName}</option>`).join('')}
         </select>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modalExpense')">Bekor</button>
-      <button class="btn btn-danger" onclick="saveExpense()">💸 Chiqimni saqlash</button>
+      <button class="btn btn-danger" onclick="saveExpense()">💸 Saqlash</button>
     </div>`,'modal-md');
+
+  // Jami hisoblagich
+  ['exQaytmaydi','exQaytadi'].forEach(id=>{
+    setTimeout(()=>{
+      const el=document.getElementById(id);
+      if(el) el.addEventListener('input',()=>{
+        const qm=parseFloat(document.getElementById('exQaytmaydi')?.value)||0;
+        const qa=parseFloat(document.getElementById('exQaytadi')?.value)||0;
+        const j=document.getElementById('exJami');
+        if(j) j.textContent=fmtMoney(qm+qa);
+      });
+    },100);
+  });
 }
 
 function saveTransaction(type){
