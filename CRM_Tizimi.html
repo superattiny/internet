@@ -2805,6 +2805,61 @@ function confirmKirimChiqim(orderId){
   if(currentPage==='finance') renderFinance();
 }
 
+function selectChiqimTuri(turi){
+  const lblQ=document.getElementById('lblQaytmaydi');
+  const lblR=document.getElementById('lblQaytadi');
+  if(lblQ&&lblR){
+    if(turi==='qaytmaydi'){
+      lblQ.style.border='2px solid var(--red)';lblQ.style.background='rgba(239,68,68,.1)';
+      lblR.style.border='2px solid var(--border)';lblR.style.background='transparent';
+    } else {
+      lblR.style.border='2px solid var(--blue)';lblR.style.background='rgba(59,130,246,.1)';
+      lblQ.style.border='2px solid var(--border)';lblQ.style.background='transparent';
+    }
+  }
+}
+
+function saveExpense(){
+  const amount=parseFloat(document.getElementById('exAmount').value)||0;
+  const desc=document.getElementById('exDesc').value.trim();
+  const turi=document.querySelector('input[name="chiqimTuri"]:checked')?.value||'qaytmaydi';
+  const orderId=document.getElementById('exOrderId').value;
+  if(!amount||amount<=0){toast('Summa kiritilishi shart!','error');return;}
+  if(!desc){toast('Chiqim nomi kiritilishi shart!','error');return;}
+
+  if(orderId){
+    const orders=DB.get('orders');
+    const o=orders.find(x=>x.id==orderId);
+    if(o){
+      if(turi==='qaytadi') o.zapchast=(o.zapchast||0)+amount;
+      else o.yolkira=(o.yolkira||0)+amount;
+      o.chiqimlar=o.chiqimlar||[];
+      o.chiqimlar.push({nom:desc,sum:amount,turi,date:today(),by:currentUser.name});
+      DB.set('orders',orders);
+    }
+  }
+
+  const fin=DB.getObj('finance');
+  fin.balance=(fin.balance||0)-amount;
+  fin.totalExpense=(fin.totalExpense||0)+amount;
+  DB.setObj('finance',fin);
+
+  const allOrders=DB.get('orders');
+  const tr=DB.get('transactions');
+  tr.push({
+    id:nextId(tr),type:'expense',amount,
+    desc:(turi==='qaytadi'?'🔩 ':'🚗 ')+desc+(orderId?' ('+allOrders.find(x=>x.id==orderId)?.num+')':''),
+    turi,orderId:orderId||null,date:today(),by:currentUser.name
+  });
+  DB.set('transactions',tr);
+  closeModal('modalExpense');
+  toast(turi==='qaytadi'?'🔩 Zapchast xarajat saqlandi':'🚗 Chiqim saqlandi (qaytmaydi)','info');
+  updateTopbarBalance();
+  if(currentPage==='finance')renderFinance();
+  if(currentPage==='dashboard')renderDashboard();
+}
+
+
 // ================================================================
 //  BALANS, ARXIV TOZALASH
 // ================================================================
@@ -2860,19 +2915,58 @@ function openAddIncome(){
 }
 
 function openAddExpense(){
+  const orders=DB.get('orders').filter(o=>!['delivered','cancelled'].includes(o.status));
   openModal('modalExpense',`
-    <div class="modal-header"><div class="modal-title">📉 Xarajat qo'shish</div>
-      <button class="modal-close" onclick="closeModal('modalExpense')">✕</button></div>
+    <div class="modal-header">
+      <div class="modal-title">📉 Chiqim qo'shish</div>
+      <button class="modal-close" onclick="closeModal('modalExpense')">✕</button>
+    </div>
     <div class="modal-body">
-      <div class="form-group"><label>Summa (so'm) <span style="color:var(--red)">*</span></label>
-        <input type="number" id="exAmount" placeholder="50000" min="0"></div>
-      <div class="form-group"><label>Tavsif <span style="color:var(--red)">*</span></label>
-        <input id="exDesc" placeholder="Xarajat sababi..."></div>
+      <div class="form-group">
+        <label style="font-size:14px;font-weight:700">Chiqim summasi (so'm) <span style="color:var(--red)">*</span></label>
+        <input type="number" id="exAmount" placeholder="50000" min="0"
+          style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;
+          background:var(--card2);color:var(--text);font-size:18px;font-weight:700;outline:none;font-family:monospace">
+      </div>
+      <div class="form-group">
+        <label>Chiqim nomi <span style="color:var(--red)">*</span></label>
+        <input id="exDesc" placeholder="Yo'lkira, ovqat, material..."
+          style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;
+          background:var(--card2);color:var(--text);font-size:13px;outline:none;font-family:inherit">
+      </div>
+      <div class="form-group">
+        <label>Bu pul qaytadimi?</label>
+        <div style="display:flex;gap:10px">
+          <label id="lblQaytmaydi" onclick="selectChiqimTuri('qaytmaydi')"
+            style="flex:1;display:flex;align-items:center;gap:10px;padding:12px 14px;
+            border:2px solid var(--red);border-radius:10px;cursor:pointer;background:rgba(239,68,68,.1)">
+            <input type="radio" name="chiqimTuri" value="qaytmaydi" checked style="accent-color:var(--red)">
+            <div><div style="font-weight:700;color:var(--red)">❌ Qaytmaydi</div>
+            <div style="font-size:11px;color:var(--text2)">Yo'lkira, ovqat, kommunal</div></div>
+          </label>
+          <label id="lblQaytadi" onclick="selectChiqimTuri('qaytadi')"
+            style="flex:1;display:flex;align-items:center;gap:10px;padding:12px 14px;
+            border:2px solid var(--border);border-radius:10px;cursor:pointer">
+            <input type="radio" name="chiqimTuri" value="qaytadi" style="accent-color:var(--blue)">
+            <div><div style="font-weight:700;color:var(--blue)">↩️ Qaytadi</div>
+            <div style="font-size:11px;color:var(--text2)">Zapchast, material</div></div>
+          </label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Buyurtmaga biriktirish (ixtiyoriy)</label>
+        <select id="exOrderId"
+          style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;
+          background:var(--card2);color:var(--text);font-size:13px;outline:none;font-family:inherit">
+          <option value="">— Umumiy xarajat —</option>
+          ${orders.map(o=>`<option value="${o.id}">${o.num} — ${o.clientName}</option>`).join('')}
+        </select>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modalExpense')">Bekor</button>
-      <button class="btn btn-danger" onclick="saveTransaction('expense')">— Chiqim</button>
-    </div>`,'modal-sm');
+      <button class="btn btn-danger" onclick="saveExpense()">💸 Chiqimni saqlash</button>
+    </div>`,'modal-md');
 }
 
 function saveTransaction(type){
@@ -2953,6 +3047,51 @@ function renderWorkers(){
       </div>
     </div>`;
 }
+
+function buildChiqimlarTab(){
+  const allTrs=DB.get('transactions').filter(t=>t.type==='expense');
+  const allOrders=DB.get('orders');
+  if(!allTrs.length) return '<div class="empty-state"><div class="empty-icon">💸</div><div class="empty-title">Chiqimlar yo\'q</div></div>';
+  const qaytmaydi=allTrs.filter(t=>t.turi==='qaytmaydi'||!t.turi);
+  const qaytadi=allTrs.filter(t=>t.turi==='qaytadi');
+  const totQM=qaytmaydi.reduce((s,t)=>s+t.amount,0);
+  const totQA=qaytadi.reduce((s,t)=>s+t.amount,0);
+  let rows='';
+  allTrs.slice().sort((a,b)=>b.date.localeCompare(a.date)).forEach(t=>{
+    const o=t.orderId?allOrders.find(x=>x.id==t.orderId):null;
+    const isQA=t.turi==='qaytadi';
+    rows+=`<tr>
+      <td style="font-size:12px;color:var(--text2)">${fmtDateOnly(t.date)}</td>
+      <td style="font-size:13px">${t.desc}</td>
+      <td><span class="badge ${isQA?'b-progress':'b-cancelled'}" style="font-size:11px">
+        ${isQA?'↩️ Qaytadi':'❌ Qaytmaydi'}</span></td>
+      <td style="font-size:12px;color:var(--purple2);font-family:monospace">${o?o.num:'—'}</td>
+      <td style="font-size:12px;color:var(--text2)">${t.by||'—'}</td>
+      <td class="money ${isQA?'blue-text':'red-text'}" style="font-weight:700">
+        ${isQA?'+':'−'}${fmtMoney(t.amount)}</td>
+    </tr>`;
+  });
+  return `<div class="card">
+    <div class="card-header" style="padding-bottom:12px">
+      <div class="card-title">💸 Barcha chiqimlar tarixi</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 20px;border-bottom:1px solid var(--border)">
+      <div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--red);margin-bottom:4px">❌ Qaytmaydigan jami</div>
+        <div class="money red-text" style="font-size:20px;font-weight:900">− ${fmtMoney(totQM)}</div>
+      </div>
+      <div style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--blue);margin-bottom:4px">↩️ Qaytuvchi jami</div>
+        <div class="money blue-text" style="font-size:20px;font-weight:900">+ ${fmtMoney(totQA)}</div>
+      </div>
+    </div>
+    <div class="table-wrap" style="border:none;border-radius:0">
+    <table><thead><tr>
+      <th>Sana</th><th>Tavsif</th><th>Turi</th><th>Buyurtma</th><th>Kim</th><th>Summa</th>
+    </tr></thead><tbody>${rows}</tbody></table></div>
+  </div>`;
+}
+
 
 function buildWorkersTable(workers){
   // Faqat bo'shatilmaganlarni ko'rsatamiz — bo'shatilganlar arxivda
@@ -3819,7 +3958,14 @@ function renderArchive(){
           color:${archiveTab==='orders'?'white':'var(--text2)'}">
           📦 Ishlar tarixi
         </button>
-        <button onclick="archiveTab='workers';renderArchive()"
+        <button onclick="archiveTab='chiqimlar';renderArchive()"
+        style="padding:8px 20px;border-radius:9px;border:none;cursor:pointer;
+        font-weight:700;font-size:13px;transition:all .15s;
+        background:${archiveTab==='chiqimlar'?'var(--yellow)':'transparent'};
+        color:${archiveTab==='chiqimlar'?'#0f172a':'var(--text2)'}">
+        💸 Chiqimlar tarixi
+      </button>
+      <button onclick="archiveTab='workers';renderArchive()"
           style="padding:8px 20px;border-radius:9px;border:none;cursor:pointer;
           font-weight:700;font-size:13px;transition:all .15s;
           background:${archiveTab==='workers'?'var(--red)':'transparent'};
@@ -3891,6 +4037,9 @@ function renderArchive(){
         ${buildArchiveTable(allOrders)}
       </div>
     </div>`:''}
+
+    <!-- TAB 3: CHIQIMLAR TARIXI -->
+    ${archiveTab==='chiqimlar'?buildChiqimlarTab():''}
 
     <!-- TAB 2: ISHDAN BO'SHATILGAN ISHCHILAR -->
     ${archiveTab==='workers'?`
