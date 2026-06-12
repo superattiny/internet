@@ -2619,10 +2619,21 @@ function renderFinance(){
              ...trsP.filter(t=>t.type==='income').map(t=>({date:t.date,label:t.desc,
                sub:t.by||'',amount:t.amount,color:'green'}))]
             .sort((a,b)=>b.date.localeCompare(a.date))
-            .map(item=>`<div style="display:flex;justify-content:space-between;align-items:center;
-              padding:10px 16px;border-bottom:1px solid rgba(45,45,80,.3)">
-              <div><div style="font-size:13px;font-weight:600">${item.label}</div>
-              <div style="font-size:11px;color:var(--text2)">${item.sub} · ${fmtDateOnly(item.date)}</div></div>
+            .map(item=>`<div
+              onclick="${item.orderId?`openTransDetail(${item.orderId},'kirim')`:''}"
+              style="display:flex;justify-content:space-between;align-items:center;
+              padding:10px 16px;border-bottom:1px solid rgba(45,45,80,.3);
+              cursor:${item.orderId?'pointer':'default'};transition:background .15s"
+              onmouseover="if(${!!0+!!'x'})this.style.background='rgba(16,185,129,.06)'"
+              onmouseout="this.style.background='transparent'">
+              <div>
+                <div style="font-size:13px;font-weight:600">${item.label}
+                  <span style="font-size:10px;color:var(--text2);margin-left:6px">
+                    ${item.orderId?'👁 tafsilot':''}
+                  </span>
+                </div>
+                <div style="font-size:11px;color:var(--text2)">${item.sub} · ${fmtDateOnly(item.date)}</div>
+              </div>
               <span class="money green-text" style="font-weight:800">+ ${fmtMoney(item.amount)}</span>
             </div>`).join('')
           }
@@ -2641,15 +2652,27 @@ function renderFinance(){
           ${trsP.filter(t=>t.type==='expense').length===0?
             `<div style="padding:20px;text-align:center;color:var(--text2)">Bu davrda chiqim yo'q</div>`:
             trsP.filter(t=>t.type==='expense').slice().sort((a,b)=>b.date.localeCompare(a.date))
-            .map(t=>`<div style="display:flex;justify-content:space-between;align-items:center;
-              padding:10px 16px;border-bottom:1px solid rgba(45,45,80,.3)">
-              <div><div style="font-size:13px;font-weight:600">${t.desc}</div>
-              <div style="font-size:11px;color:var(--text2);display:flex;gap:8px">
-                <span>${fmtDateOnly(t.date)}</span>
-                <span style="color:${t.turi==='qaytadi'?'var(--blue)':t.turi==='oylik'?'var(--green)':'var(--red)'}">
-                  ${t.turi==='qaytadi'?'↩️ Qaytadi':t.turi==='oylik'?'💵 Oylik':'❌ Qaytmaydi'}
-                </span>
-              </div></div>
+            .map(t=>`<div
+              onclick="${t.orderId?`openTransDetail(${t.orderId},'chiqim')`:''}"
+              style="display:flex;justify-content:space-between;align-items:center;
+              padding:10px 16px;border-bottom:1px solid rgba(45,45,80,.3);
+              cursor:${t.orderId?'pointer':'default'};transition:background .15s"
+              onmouseover="this.style.background='rgba(239,68,68,.04)'"
+              onmouseout="this.style.background='transparent'">
+              <div>
+                <div style="font-size:13px;font-weight:600">${t.desc}
+                  <span style="font-size:10px;color:var(--text2);margin-left:6px">
+                    ${t.orderId?'👁 tafsilot':''}
+                  </span>
+                </div>
+                <div style="font-size:11px;color:var(--text2);display:flex;gap:8px">
+                  <span>${fmtDateOnly(t.date)}</span>
+                  <span style="color:${t.turi==='qaytadi'?'var(--blue)':t.turi==='oylik'?'var(--green)':'var(--red)'}">
+                    ${t.turi==='qaytadi'?'↩️ Qaytadi':t.turi==='oylik'?'💵 Oylik':'❌ Qaytmaydi'}
+                  </span>
+                  ${t.by?`<span style="color:var(--text2)">${t.by}</span>`:''}
+                </div>
+              </div>
               <span class="money red-text" style="font-weight:800">− ${fmtMoney(t.amount)}</span>
             </div>`).join('')
           }
@@ -2936,6 +2959,94 @@ function saveExpense(){
   updateTopbarBalance();
   if(currentPage==='finance')renderFinance();
   if(currentPage==='dashboard')renderDashboard();
+}
+
+
+function openTransDetail(orderId, tur){
+  const o=DB.get('orders').find(x=>x.id==orderId);
+  if(!o)return;
+
+  const chiqimlar=o.chiqimlar||[];
+  const zapchast=o.zapchast||0;
+  const yolkira=o.yolkira||0;
+  const foyda=o.foyda||0;
+
+  openModal('modalTransDetail',`
+    <div class="modal-header">
+      <div class="modal-title">${tur==='kirim'?'📈 Kirim tafsiloti':'📉 Chiqim tafsiloti'} — ${o.num}</div>
+      <button class="modal-close" onclick="closeModal('modalTransDetail')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--card2);padding:12px 14px;border-radius:10px;margin-bottom:14px">
+        <div style="font-weight:700">${o.clientName}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px">
+          ${o.num} · ${o.masterName||'Usta tayinlanmagan'}
+        </div>
+      </div>
+
+      ${tur==='kirim'?`
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text2);margin-bottom:8px">
+        📈 KIRIM TARKIBI
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+        ${foyda>0?`<div style="display:flex;justify-content:space-between;padding:9px 12px;
+          background:rgba(16,185,129,.08);border-radius:8px;border-left:3px solid var(--green)">
+          <div><div style="font-weight:600;color:var(--green)">📈 Sof foyda</div>
+          <div style="font-size:11px;color:var(--text2)">Buyurtmadan olingan foyda</div></div>
+          <span class="money green-text" style="font-weight:800">+ ${fmtMoney(foyda)}</span>
+        </div>`:''}
+        ${zapchast>0?`<div style="display:flex;justify-content:space-between;padding:9px 12px;
+          background:rgba(59,130,246,.08);border-radius:8px;border-left:3px solid var(--blue)">
+          <div><div style="font-weight:600;color:var(--blue)">🔩 Zapchast qaytdi ↩️</div>
+          <div style="font-size:11px;color:var(--text2)">Sarflangan zapchast qaytib keldi</div></div>
+          <span class="money blue-text" style="font-weight:800">+ ${fmtMoney(zapchast)}</span>
+        </div>`:''}
+        <div style="display:flex;justify-content:space-between;padding:10px 14px;
+          background:rgba(124,58,237,.15);border:2px solid rgba(124,58,237,.4);border-radius:9px">
+          <span style="font-weight:700">💰 Jami kirim:</span>
+          <span class="money" style="color:var(--purple2);font-weight:900;font-size:18px">
+            + ${fmtMoney(o.finalPrice||0)}</span>
+        </div>
+      </div>`:`
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text2);margin-bottom:8px">
+        📉 CHIQIM TARKIBI
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+        ${yolkira>0?`<div style="display:flex;justify-content:space-between;padding:9px 12px;
+          background:rgba(239,68,68,.08);border-radius:8px;border-left:3px solid var(--red)">
+          <div><div style="font-weight:600;color:var(--red)">🚗 Yo'lkira</div>
+          <div style="font-size:11px;color:var(--text2)">Qaytmaydigan xarajat ❌</div></div>
+          <span class="money red-text" style="font-weight:800">− ${fmtMoney(yolkira)}</span>
+        </div>`:''}
+        ${zapchast>0?`<div style="display:flex;justify-content:space-between;padding:9px 12px;
+          background:rgba(245,158,11,.08);border-radius:8px;border-left:3px solid var(--yellow)">
+          <div><div style="font-weight:600;color:var(--yellow)">🔩 Zapchast xarajati</div>
+          <div style="font-size:11px;color:var(--text2)">Keyinroq qaytadi ↩️</div></div>
+          <span class="money yellow-text" style="font-weight:800">− ${fmtMoney(zapchast)}</span>
+        </div>`:''}
+        ${chiqimlar.length>0?chiqimlar.map(c=>`
+        <div style="display:flex;justify-content:space-between;padding:9px 12px;
+          background:rgba(${c.turi==='qaytadi'?'59,130,246':'239,68,68'},.08);border-radius:8px;
+          border-left:3px solid var(--${c.turi==='qaytadi'?'blue':'red'})">
+          <div><div style="font-weight:600;color:var(--${c.turi==='qaytadi'?'blue':'red'}">${c.nom}</div>
+          <div style="font-size:11px;color:var(--text2)">${c.date} · ${c.by||''} · ${c.turi==='qaytadi'?'↩️ Qaytadi':'❌ Qaytmaydi'}</div></div>
+          <span class="money" style="color:var(--${c.turi==='qaytadi'?'blue':'red'});font-weight:800">− ${fmtMoney(c.sum)}</span>
+        </div>`).join(''):'' }
+        <div style="display:flex;justify-content:space-between;padding:10px 14px;
+          background:rgba(239,68,68,.12);border:2px solid rgba(239,68,68,.4);border-radius:9px">
+          <span style="font-weight:700">📉 Jami chiqim:</span>
+          <span class="money red-text" style="font-weight:900;font-size:18px">
+            − ${fmtMoney(yolkira+zapchast+chiqimlar.reduce((s,c)=>s+c.sum,0))}</span>
+        </div>
+      </div>`}
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalTransDetail')">Yopish</button>
+      <button class="btn btn-blue" onclick="closeModal('modalTransDetail');openOrderDetail(${o.id})">
+        📋 Buyurtmani ko'rish
+      </button>
+    </div>
+  `,'modal-md');
 }
 
 
