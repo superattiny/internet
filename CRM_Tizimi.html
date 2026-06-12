@@ -491,6 +491,7 @@ const PAGE_TITLES={
   clients:{title:'Mijozlar',icon:'👥'},
   finance:{title:'Balans',icon:'💰'},
   workers:{title:'Ishchilar',icon:'👨‍🔧'},
+  ustalar:{title:"Ustalar ro'yxati",icon:'👷'},
   chats:{title:'Qo\'ng\'iroqlar',icon:'📞'},
   reminders:{title:'Eslatmalar',icon:'🔔'},
   archive:{title:'Arxiv',icon:'📦'},
@@ -929,7 +930,20 @@ function openNewOrderModal(clientId,clientName,clientPhone){
           <label>Model</label>
           <input id="oTvModel" placeholder="UA55TU8000">
         </div>
-
+        <div class="form-group">
+          <label>Diagonal (dyuym)</label>
+          <select id="oTvDiagonal">
+            <option value="">— Noma'lum —</option>
+            ${['19"','22"','24"','28"','32"','40"','43"','50"','55"','65"','75"','86"','Boshqa'].map(d=>`<option value="${d}">${d}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Texnika turi</label>
+          <select id="oTvType">
+            <option value="">— Noma'lum —</option>
+            ${['LCD','LED','OLED','QLED','Plasma','Projetor','Monitor','Boshqa'].map(t=>`<option value="${t}">${t}</option>`).join('')}
+          </select>
+        </div>
       </div>
       <div class="divider"></div>
       <div class="section-title">🔧 Buyurtma tafsiloti</div>
@@ -1256,6 +1270,8 @@ function saveNewOrder(){
     clientPhone:document.getElementById('oClientPhone').value.trim(),
     tvBrand:document.getElementById('oTvBrand').value,
     tvModel:document.getElementById('oTvModel').value.trim(),
+    tvDiagonal:document.getElementById('oTvDiagonal').value,
+    tvType:document.getElementById('oTvType').value,
     problem,
     status:'new',
     source:document.getElementById('oSource').value,
@@ -1303,9 +1319,39 @@ function openOrderDetail(id){
           <div class="info-row"><span class="info-label">Telefon:</span><span class="info-value">${o.clientPhone||'—'}</span></div>
           <div class="divider"></div>
           <div class="section-title">📺 Texnika</div>
-          <div class="info-row"><span class="info-label">Brand:</span><span class="info-value">${o.tvBrand||'—'}</span></div>
-          <div class="info-row"><span class="info-label">Model:</span><span class="info-value">${o.tvModel||'—'}</span></div>
-          <div class="info-row"><span class="info-label">Diagonal:</span><span class="info-value">${o.tvDiagonal||'—'}</span></div>
+          <div class="info-row"><span class="info-label">Brand:</span>
+            <select onchange="changeTvInfo(${o.id},'tvBrand',this.value)"
+              style="background:var(--card2);border:1px solid var(--border);border-radius:6px;
+              color:var(--text);padding:3px 8px;font-size:12px;outline:none;cursor:pointer">
+              <option value="">— Noma'lum —</option>
+              ${['Samsung','LG','Sony','Philips','TCL','Hisense','Artel','Boshqa'].map(b=>
+                `<option value="${b}" ${o.tvBrand===b?'selected':''}>${b}</option>`).join('')}
+            </select>
+          </div>
+          <div class="info-row"><span class="info-label">Model:</span>
+            <input value="${o.tvModel||''}" placeholder="UA55TU8000"
+              onchange="changeTvInfo(${o.id},'tvModel',this.value)"
+              style="background:var(--card2);border:1px solid var(--border);border-radius:6px;
+              color:var(--text);padding:3px 8px;font-size:12px;outline:none;width:150px">
+          </div>
+          <div class="info-row"><span class="info-label">Diagonal:</span>
+            <select onchange="changeTvInfo(${o.id},'tvDiagonal',this.value)"
+              style="background:var(--card2);border:1px solid var(--border);border-radius:6px;
+              color:var(--text);padding:3px 8px;font-size:12px;outline:none;cursor:pointer">
+              <option value="">— Noma'lum —</option>
+              ${['19"','22"','24"','28"','32"','40"','43"','50"','55"','65"','75"','86"','Boshqa'].map(d=>
+                `<option value="${d}" ${o.tvDiagonal===d?'selected':''}>${d}</option>`).join('')}
+            </select>
+          </div>
+          <div class="info-row"><span class="info-label">Turi:</span>
+            <select onchange="changeTvInfo(${o.id},'tvType',this.value)"
+              style="background:var(--card2);border:1px solid var(--border);border-radius:6px;
+              color:var(--text);padding:3px 8px;font-size:12px;outline:none;cursor:pointer">
+              <option value="">— Noma'lum —</option>
+              ${['LCD','LED','OLED','QLED','Plasma','Projetor','Monitor','Boshqa'].map(t=>
+                `<option value="${t}" ${o.tvType===t?'selected':''}>${t}</option>`).join('')}
+            </select>
+          </div>
           <div class="divider"></div>
           <div class="section-title">🔧 Muammo</div>
           <div style="background:var(--card2);padding:12px;border-radius:8px;font-size:13px;line-height:1.6">${o.problem||'—'}</div>
@@ -1372,6 +1418,20 @@ function changeMaster(orderId,masterId){
   o.updatedAt=today();
   DB.set('orders',orders);
   toast(master?`Usta tayinlandi: ${master.name}`:'Usta olib tashlandi');
+}
+
+// Texnika ma'lumotlarini inline o'zgartirish
+function changeTvInfo(orderId, field, value){
+  const orders=DB.get('orders');
+  const o=orders.find(x=>x.id===orderId);
+  if(!o)return;
+  o[field]=value;
+  o.updatedAt=today();
+  DB.set('orders',orders);
+  const LABELS={tvBrand:'Brand',tvModel:'Model',tvDiagonal:'Diagonal',tvType:'Turi'};
+  toast(`✅ ${LABELS[field]||field} yangilandi`);
+  if(currentPage==='orders')renderOrders();
+  if(currentPage==='dashboard')renderDashboard();
 }
 
 // ---------- STATUS MODAL ----------
@@ -2059,9 +2119,38 @@ function openNewClientModal(prefill){
         <label>📺 Texnika muammosi (ta'mirlash)</label>
         <input id="cProblem" placeholder="Ekran yonmayapti, ovoz bor..." style="margin-bottom:6px">
       </div>
-      <div class="form-group">
-        <label>💰 Ta'mirlash narxi (so'm)</label>
-        <input type="number" id="cRepairCost" placeholder="150000" min="0">
+      <div class="grid-2">
+        <div class="form-group">
+          <label>📺 Brand</label>
+          <select id="cTvBrand" style="width:100%;padding:9px 12px;background:var(--card2);
+            border:1.5px solid var(--border);border-radius:8px;color:var(--text);
+            font-size:13px;outline:none;font-family:inherit">
+            <option value="">— Noma'lum —</option>
+            ${['Samsung','LG','Sony','Philips','TCL','Hisense','Artel','Boshqa'].map(b=>`<option value="${b}">${b}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>📐 Diagonal</label>
+          <select id="cTvDiagonal" style="width:100%;padding:9px 12px;background:var(--card2);
+            border:1.5px solid var(--border);border-radius:8px;color:var(--text);
+            font-size:13px;outline:none;font-family:inherit">
+            <option value="">— Noma'lum —</option>
+            ${['19"','22"','24"','28"','32"','40"','43"','50"','55"','65"','75"','86"','Boshqa'].map(d=>`<option value="${d}">${d}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>🖥 Texnika turi</label>
+          <select id="cTvType" style="width:100%;padding:9px 12px;background:var(--card2);
+            border:1.5px solid var(--border);border-radius:8px;color:var(--text);
+            font-size:13px;outline:none;font-family:inherit">
+            <option value="">— Noma'lum —</option>
+            ${['LCD','LED','OLED','QLED','Plasma','Projetor','Monitor','Boshqa'].map(t=>`<option value="${t}">${t}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>💰 Ta'mirlash narxi (so'm)</label>
+          <input type="number" id="cRepairCost" placeholder="150000" min="0">
+        </div>
       </div>
       <div class="form-group">
         <label>👨‍💼 Ishchi biriktirish</label>
@@ -2097,6 +2186,9 @@ function saveNewClient(){
   const problem=(document.getElementById('cProblem')?.value||'').trim();
   const repairCost=parseFloat(document.getElementById('cRepairCost')?.value)||0;
   const workerId=document.getElementById('cWorkerId')?.value||'';
+  const tvBrand=document.getElementById('cTvBrand')?.value||'';
+  const tvDiagonal=document.getElementById('cTvDiagonal')?.value||'';
+  const tvType=document.getElementById('cTvType')?.value||'';
 
   const newClient={id:nextId(clients),name,phone,phone2:document.getElementById('cPhone2').value.trim(),
     address:document.getElementById('cAddress').value.trim(),
@@ -2121,7 +2213,7 @@ function saveNewClient(){
       clientId:newClient.id,
       clientName:name,
       clientPhone:phone,
-      tvBrand:'',tvModel:'',
+      tvBrand:tvBrand,tvModel:'',tvDiagonal:tvDiagonal,tvType:tvType,
       problem,
       status:'new',
       source:'walk_in',
@@ -3900,6 +3992,7 @@ function confirmFire(id){
   }
 
   // Asbob yo'q — to'g'ridan bo'shatish
+  closeModal('modalFire');
   doFireWorker(id, SABAB[sabab]||sabab, izoh);
 }
 
