@@ -415,7 +415,13 @@ function addDays(n){
 }
 function fmtDate(s){ if(!s)return'—'; return new Date(s).toLocaleString('uz-UZ',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) }
 function fmtDateOnly(s){ if(!s)return'—'; return new Date(s).toLocaleDateString('uz-UZ') }
-function fmtMoney(n){ if(!n&&n!==0)return'—'; return Number(n).toLocaleString('uz-UZ')+" so'm" }
+function fmtMoney(n){
+  if(n===null||n===undefined||n==='')return'—';
+  const num=Number(n);
+  if(isNaN(num))return'—';
+  const [int,dec]=num.toFixed(2).split('.');
+  return int.replace(/\B(?=(\d{3})+(?!\d))/g,' ')+'.'+dec+" so'm";
+}
 function nextId(arr){ return arr.length?Math.max(...arr.map(x=>x.id))+1:1 }
 function getDeadlineInfo(deadline){
   if(!deadline)return{label:'—',cls:'',overdue:false};
