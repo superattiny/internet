@@ -2399,55 +2399,48 @@ function renderFinance(){
   const trsP=trsAll.filter(t=>t.date>=from&&t.date<=to);
 
   let runBal=balanceStart;
-  let totZapChiq=0,totYol=0,totZapQayt=0,totFoy=0,totKirim=0,totChiqim=0;
+  let totFoy=0,totKirim=0,totChiqim=0;
   const logs=[];
 
-  ordersP.slice().sort((a,b)=>(a.updatedAt||'').localeCompare(b.updatedAt||'')).forEach(o=>{
-    const zap=o.zapchast||0,yol=o.yolkira||0,foy=o.foyda||0;
-    if(zap>0){
-      runBal-=zap; totZapChiq+=zap;
-      logs.push({tag:'CHIQIM',label:'🔩 Zapchast — '+o.num,note:o.clientName,amount:-zap,balance:runBal});
-    }
-    if(yol>0){
-      runBal-=yol; totYol+=yol;
-      logs.push({tag:'QAYTMADI',label:"🚗 Yo'lkira — "+o.num,note:o.clientName+" · Qaytmadi ❌",amount:-yol,balance:runBal});
-    }
-    if(zap+foy>0){
-      runBal+=zap+foy; totZapQayt+=zap; totFoy+=foy;
-      logs.push({tag:'KIRIM',label:"💰 To'lov — "+o.num,
-        note:o.clientName+' | Foyda: '+fmtMoney(foy)+' + Zapchast: '+fmtMoney(zap),
-        amount:zap+foy,balance:runBal});
+  // ── Har bir buyurtma uchun bog'liq chiqimlarni oldindan hisoblaymiz ──
+  // (orderId bor expense tranzaksiyalar)
+  const orderExpMap={};
+  trsP.forEach(t=>{
+    if(t.type==='expense'&&t.orderId){
+      orderExpMap[t.orderId]=(orderExpMap[t.orderId]||0)+t.amount;
     }
   });
+
+  // ── To'langan buyurtmalar: FOYDA = narx − buyurtmaga bog'liq chiqimlar ──
+  ordersP.slice().sort((a,b)=>(a.updatedAt||'').localeCompare(b.updatedAt||'')).forEach(o=>{
+    const orderExp = orderExpMap[o.id]||0;
+    const foy = (o.finalPrice||0) - orderExp;
+    totFoy += foy;
+    logs.push({
+      tag:'KIRIM',
+      label:"💰 To'lov — "+o.num,
+      note:o.clientName+' | Narx: '+fmtMoney(o.finalPrice||0)+(orderExp>0?' | Chiqim: −'+fmtMoney(orderExp):'')
+           +' | Foyda: '+fmtMoney(foy),
+      amount:foy,
+      balance:runBal+foy
+    });
+    runBal+=foy;
+  });
+
+  // ── Tranzaksiyalar: faqat buyurtmaga BOG'LIQ BULMAGAN kirim/chiqimlar ──
   trsP.forEach(t=>{
+    if(t.orderId) return; // buyurtmaga bog'liq — yuqorida hisoblab bo'ldik
     if(t.type==='income'){
       runBal+=t.amount; totKirim+=t.amount;
       logs.push({tag:'KIRIM',label:"📈 Kirim",note:t.desc,amount:t.amount,balance:runBal});
     } else {
       runBal-=t.amount; totChiqim+=t.amount;
-      logs.push({tag:'QAYTMADI',label:"💸 Chiqim",note:t.desc+" ❌",amount:-t.amount,balance:runBal});
+      logs.push({tag:'CHIQIM',label:"💸 Chiqim",note:t.desc,amount:-t.amount,balance:runBal});
     }
   });
 
   const balanceEnd=runBal;
-  const sofFoyda=totFoy+totKirim-totYol-totChiqim;
-  const qoldiq=balanceStart-totZapChiq-totYol-totChiqim;
-
-  // YANGI HISOB-KITOB FORMULASI
-  // Ertalabgi balans = kecha yopilgan balans (bugundan oldingi)
-  const ertalabgiBalans = balanceStart;
-  // Qaytmaydigan xarajat = yo'lkira + qo'shimcha chiqimlar
-  const qaytmaydigan = totYol + totChiqim;
-  // Qaytgan xarajat (zapchast) = zapchast qaytdi
-  const qaytganZapchast = totZapQayt;
-  // Buyurtma foydasi
-  const buyurtmaFoyda = totFoy + totKirim;
-  // Sof foyda = foyda - qaytmaydigan
-  const sofFoydaYangi = buyurtmaFoyda - qaytmaydigan;
-  // JAMI = Ertalabgi + Foyda + Zapchast - Yo'lkira
-  const jamiYangi = ertalabgiBalans + buyurtmaFoyda + qaytganZapchast - qaytmaydigan;
-  // QOLDIQ = Ertalabgi - Zapchast_chiqim - Yo'lkira
-  const qoldiqYangi = ertalabgiBalans - totZapChiq - qaytmaydigan;
+  const sofFoyda=totFoy+totKirim-totChiqim;
 
   // Qabul kutilmoqda buyurtmalar (bildirishnoma sifatida)
   const qabulKutilmoqda = DB.get('orders').filter(o=>o.qabulKutilmoqda&&!o.isPaid);
@@ -2536,8 +2529,8 @@ function renderFinance(){
       <span style="font-size:13px;color:var(--green)">Barcha to'lovlar tasdiqlangan — yangi xabar yo'q</span>
     </div>`}
 
-    <!-- 5 TA KATTA RAQAM: JAMI | YOLKIRA | ZAPCHAST | FOYDA | SOF -->
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px">
+    <!-- 4 TA KARTA: BALANS | KIRIM | CHIQIM | FOYDA -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
 
       <div style="background:rgba(16,185,129,.15);border:2px solid rgba(16,185,129,.6);
         border-radius:13px;padding:16px 14px;text-align:center">
@@ -2547,28 +2540,22 @@ function renderFinance(){
         <div style="font-size:10px;color:var(--text2);margin-top:4px">Kassada hozir</div>
       </div>
 
-      <div style="background:rgba(239,68,68,.12);border:2px solid rgba(239,68,68,.5);
-        border-radius:13px;padding:16px 14px;text-align:center">
-        <div style="font-size:10px;font-weight:800;text-transform:uppercase;color:var(--red);margin-bottom:6px">
-          🚗 YO'LKIRA</div>
-        <div class="money red-text" style="font-size:22px;font-weight:900">− ${fmtMoney(totYol+totChiqim)}</div>
-        <div style="font-size:10px;color:var(--text2);margin-top:4px">Qaytmaydigan ❌</div>
-      </div>
-
       <div style="background:rgba(59,130,246,.12);border:2px solid rgba(59,130,246,.5);
         border-radius:13px;padding:16px 14px;text-align:center">
         <div style="font-size:10px;font-weight:800;text-transform:uppercase;color:var(--blue);margin-bottom:6px">
-          🔩 ZAPCHAST</div>
-        <div class="money blue-text" style="font-size:22px;font-weight:900">+ ${fmtMoney(totZapQayt)}</div>
-        <div style="font-size:10px;color:var(--text2);margin-top:4px">Qaytib keldi ↩️</div>
+          📥 KIRIM</div>
+        <div class="money blue-text" style="font-size:22px;font-weight:900">
+          + ${fmtMoney(ordersP.reduce((s,o)=>s+(o.finalPrice||0),0)+totKirim)}</div>
+        <div style="font-size:10px;color:var(--text2);margin-top:4px">Buyurtma + boshqa</div>
       </div>
 
-      <div style="background:rgba(16,185,129,.12);border:2px solid rgba(16,185,129,.5);
+      <div style="background:rgba(239,68,68,.12);border:2px solid rgba(239,68,68,.5);
         border-radius:13px;padding:16px 14px;text-align:center">
-        <div style="font-size:10px;font-weight:800;text-transform:uppercase;color:var(--green);margin-bottom:6px">
-          📈 FOYDA</div>
-        <div class="money green-text" style="font-size:22px;font-weight:900">+ ${fmtMoney(totFoy+totKirim)}</div>
-        <div style="font-size:10px;color:var(--text2);margin-top:4px">Buyurtmadan</div>
+        <div style="font-size:10px;font-weight:800;text-transform:uppercase;color:var(--red);margin-bottom:6px">
+          💸 CHIQIM</div>
+        <div class="money red-text" style="font-size:22px;font-weight:900">
+          − ${fmtMoney(Object.values(orderExpMap).reduce((s,v)=>s+v,0)+totChiqim)}</div>
+        <div style="font-size:10px;color:var(--text2);margin-top:4px">Jami xarajatlar</div>
       </div>
 
       <div style="background:${sofFoyda>=0?'rgba(124,58,237,.18)':'rgba(239,68,68,.15)'};
@@ -2576,11 +2563,11 @@ function renderFinance(){
         border-radius:13px;padding:16px 14px;text-align:center">
         <div style="font-size:10px;font-weight:800;text-transform:uppercase;
           color:${sofFoyda>=0?'var(--purple2)':'var(--red)'};margin-bottom:6px">
-          💎 SOF FOYDA</div>
+          📈 FOYDA</div>
         <div class="money" style="font-size:22px;font-weight:900;
           color:${sofFoyda>=0?'var(--purple2)':'var(--red)'}">
           ${sofFoyda>=0?'+ ':''}${fmtMoney(sofFoyda)}</div>
-        <div style="font-size:10px;color:var(--text2);margin-top:4px">Foyda − Yo'lkira</div>
+        <div style="font-size:10px;color:var(--text2);margin-top:4px">Kirim − Chiqim</div>
       </div>
 
     </div>
@@ -2602,24 +2589,27 @@ function renderFinance(){
       <div class="table-wrap" style="border:none;border-radius:0">
       <table><thead><tr>
         <th>Raqam</th><th>Mijoz</th>
-        <th style="color:var(--green)">Foyda +</th>
-        <th style="color:var(--blue)">Zapchast ↩️</th>
-        <th style="color:var(--red)">Yo'lkira ❌</th>
-        <th>Jami</th><th>Sana</th>
+        <th style="color:var(--blue)">Buyurtma narxi</th>
+        <th style="color:var(--red)">Chiqim −</th>
+        <th style="color:var(--purple2)">Foyda</th>
+        <th>Sana</th>
       </tr></thead><tbody>
       ${ordersP.slice().sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt))
-        .map(o=>`<tr>
-        <td style="font-family:monospace;font-weight:700;color:var(--purple2);font-size:12px">${o.num}</td>
-        <td style="font-size:12px">${o.clientName}</td>
-        <td class="money green-text" style="font-size:12px">
-          ${(o.foyda||0)>0?'+ '+fmtMoney(o.foyda):'—'}</td>
-        <td class="money blue-text" style="font-size:12px">
-          ${(o.zapchast||0)>0?'+ '+fmtMoney(o.zapchast):'—'}</td>
-        <td class="money red-text" style="font-size:12px">
-          ${(o.yolkira||0)>0?'− '+fmtMoney(o.yolkira):'—'}</td>
-        <td class="money" style="font-weight:700;font-size:12px">${fmtMoney(o.finalPrice||0)}</td>
-        <td style="font-size:11px;color:var(--text2)">${fmtDateOnly(o.updatedAt)}</td>
-      </tr>`).join('')}
+        .map(o=>{
+          const oExp=Object.values(orderExpMap).length?
+            (trsP.filter(t=>t.orderId==o.id&&t.type==='expense').reduce((s,t)=>s+t.amount,0)):0;
+          const oFoy=(o.finalPrice||0)-oExp;
+          return `<tr>
+          <td style="font-family:monospace;font-weight:700;color:var(--purple2);font-size:12px">${o.num}</td>
+          <td style="font-size:12px">${o.clientName}</td>
+          <td class="money blue-text" style="font-size:12px">+ ${fmtMoney(o.finalPrice||0)}</td>
+          <td class="money red-text" style="font-size:12px">
+            ${oExp>0?'− '+fmtMoney(oExp):'—'}</td>
+          <td class="money" style="font-weight:800;font-size:13px;
+            color:${oFoy>=0?'var(--purple2)':'var(--red)'}">
+            ${oFoy>=0?'+ ':''}${fmtMoney(oFoy)}</td>
+          <td style="font-size:11px;color:var(--text2)">${fmtDateOnly(o.updatedAt)}</td>
+        </tr>`;}).join('')}
       </tbody></table></div>`}
     </div>
 
