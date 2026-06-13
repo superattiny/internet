@@ -1879,7 +1879,7 @@ function confirmQabul(orderId){
     const users=DB.get('users');
     const master=users.find(u=>u.id===o.masterId);
     if(master && (master.commission||0)>0){
-      const kom=Math.round(o.foyda * master.commission/100);
+      const kom=o.foyda * master.commission/100;
       master.balance=(master.balance||0)+kom;
       DB.set('users',users);
       toast(`💰 ${master.name}ga komisyon: ${fmtMoney(kom)} (${master.commission}% × foyda)`,'info');
@@ -1996,7 +1996,7 @@ function savePayment(orderId){
     const users=DB.get('users');
     const master=users.find(u=>u.id===o.masterId);
     if(master&&master.commission>0){
-      const comm=Math.round(amount*master.commission/100);
+      const comm=amount*master.commission/100;
       master.balance=(master.balance||0)+comm;
       DB.set('users',users);
       toast(`💰 ${master.name}ga komisyon: ${fmtMoney(comm)}`,'info');
@@ -2635,7 +2635,7 @@ function renderFinance(){
           const oE=trsP.filter(t=>t.orderId==o.id&&t.type==='expense').reduce((ss,t)=>ss+t.amount,0);
           const pr=Math.max(0,(o.finalPrice||0)-oE);
           const mst=DB.get('users').find(u=>u.id===o.masterId);
-          return s+Math.round(pr*((mst?mst.commission:0)||0)/100);
+          return s+pr*((mst?mst.commission:0)||0)/100;
         }
         return s+(o.workerShare||0);
       },0);
@@ -2815,7 +2815,7 @@ function confirmKirimChiqim(orderId){
   const users=DB.get('users');
   const master=o.masterId?users.find(u=>u.id===o.masterId):null;
   const commPct=master?(master.commission||0):0;
-  const workerShare=master?Math.round(profit*(commPct/100)):0;
+  const workerShare=master?profit*(commPct/100):0;
   const companyShare=profit-workerShare;
 
   // ── 4. Orderni yangilash ──
@@ -2905,7 +2905,7 @@ function saveExpense(){
       const users = DB.get('users');
       const master = o.masterId ? users.find(u=>u.id===o.masterId) : null;
       const commPct = master ? (master.commission||0) : 0;
-      const newWorkerShare = master ? Math.round(newProfit*(commPct/100)) : 0;
+      const newWorkerShare = master ? newProfit*(commPct/100) : 0;
       const oldWorkerShare = o.workerShare||0;
       const diff = newWorkerShare - oldWorkerShare; // manfiy = ishchidan ayriladi
 
