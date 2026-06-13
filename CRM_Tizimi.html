@@ -3348,18 +3348,35 @@ function saveOylik(){
   workers.forEach(w=>{
     const sum=parseFloat(document.getElementById('oylik_'+w.id)?.value)||0;
     if(sum<=0)return;
-    // Balansdan ayirish (manfiy bo'lishi mumkin — kompaniya qopladi)
-    w.balance=(w.balance||0)-sum;
-    // Period reset — yangi davr boshlanadi
-    w.periodStart=today();
-    if(w.balance<0){w.companySubsidy=(w.companySubsidy||0)+Math.abs(w.balance);}
-    fin.balance=(fin.balance||0)-sum;
-    fin.totalExpense=(fin.totalExpense||0)+sum;
-    tr.push({id:nextId(tr),type:'expense',amount:sum,
-      desc:`💵 Oylik: ${w.name}`,
-      turi:'oylik',workerId:w.id,orderId:null,date:today(),by:currentUser.name});
-    totalTolandi+=sum;
-    tolananlar.push(`${w.name}: ${fmtMoney(sum)}`);
+
+    const balans = w.balance||0;
+    const oddiy  = Math.min(sum, Math.max(0, balans)); // Balansdan olinadigan qism
+    const ortiqcha = sum - oddiy;                       // Kompaniya qoplaydigan qo'shimcha
+
+    // Ishchi balansi faqat 0 ga tushadi, manfiyga ketmaydi
+    w.balance = balans - oddiy;
+    w.periodStart = today();
+
+    // Umumiy balansdan to'liq summa ayiriladi
+    fin.balance = (fin.balance||0) - sum;
+    fin.totalExpense = (fin.totalExpense||0) + sum;
+
+    // Oddiy oylik tranzaksiyasi
+    if(oddiy > 0){
+      tr.push({id:nextId(tr), type:'expense', amount:oddiy,
+        desc:`💵 Oylik: ${w.name}`,
+        turi:'oylik', workerId:w.id, orderId:null, date:today(), by:currentUser.name});
+    }
+
+    // Ortiqcha qism — alohida chiqim
+    if(ortiqcha > 0){
+      tr.push({id:nextId(tr), type:'expense', amount:ortiqcha,
+        desc:`💵 Oylikka qo'shimcha chiqim: ${w.name}`,
+        turi:'ortiqcha_oylik', workerId:w.id, orderId:null, date:today(), by:currentUser.name});
+    }
+
+    totalTolandi += sum;
+    tolananlar.push(`${w.name}: ${fmtMoney(sum)}${ortiqcha>0?' (+'+fmtMoney(ortiqcha)+' qo\'shimcha)':''}`);
   });
 
   if(totalTolandi===0){
@@ -3588,46 +3605,6 @@ function renderWorkers(){
       </div>
       <button class="btn btn-purple" onclick="openNewWorkerModal()">＋ Yangi Ishchi</button>
     </div>
-
-    <!-- ORTIQCHA TO'LOV QILINGAN ISHCHILAR (manfiy balans) -->
-    ${(()=>{
-      const ortiqchalar = activeWorkers.filter(w=>(w.balance||0)<0);
-      if(!ortiqchalar.length) return '';
-      return `<div style="background:rgba(239,68,68,.08);border:2px solid rgba(239,68,68,.4);
-        border-radius:14px;padding:16px 18px;margin-bottom:16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <div style="font-size:13px;font-weight:800;color:var(--red)">
-            ⚠️ ORTIQCHA XARAJAT QILINGAN ISHCHILAR — ${ortiqchalar.length} ta
-          </div>
-          <div style="font-size:12px;color:var(--text2)">Topganidan ko'p oylik olganlar</div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          ${ortiqchalar.map(w=>`
-          <div style="display:flex;align-items:center;justify-content:space-between;
-            padding:10px 14px;background:var(--card2);border-radius:10px;
-            border-left:3px solid var(--red)">
-            <div>
-              <div style="font-weight:700;font-size:13px">${w.name}</div>
-              <div style="font-size:11px;color:var(--text2)">
-                ${w.role==='master'?'👷 Usta':'🖥 Operator'}
-                · Kompaniya qoplagan ortiqcha xarajat
-              </div>
-            </div>
-            <div style="text-align:center">
-              <div class="money red-text" style="font-weight:900;font-size:16px">
-                ${fmtMoney(Math.abs(w.balance||0))}
-              </div>
-              <div style="font-size:10px;color:var(--text2)">Ortiqcha xarajat</div>
-            </div>
-            <button onclick="openQarzQaytarishModal(${w.id})"
-              style="background:var(--red);color:white;border:none;border-radius:9px;
-              padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">
-              ↩️ Qaytarish
-            </button>
-          </div>`).join('')}
-        </div>
-      </div>`;
-    })()}
 
     <!-- JADVAL — faqat faol ishchilar -->
     <div class="card">
