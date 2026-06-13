@@ -3096,6 +3096,8 @@ function openFullResetModal(){
     {key:'finance',     icon:'💰', label:'Balans va moliya',       count:fmtMoney(fin.balance||0)},
     {key:'reminders',   icon:'🔔', label:'Eslatmalar',            count:reminders.length+' ta'},
     {key:'wbalance',    icon:'👨‍🔧',label:'Ishchilar balansi',     count:'0 ga tushiriladi'},
+    {key:'woylik',      icon:'💵', label:'Ishchilar oylik tarixi',count:'totalEarned, totalPaid → 0'},
+    {key:'wdebt',       icon:'💸', label:'Ishchilar qarzi',        count:'debt → 0'},
   ];
 
   openModal('modalFullReset',`
@@ -3184,7 +3186,7 @@ function toggleResetItem(key){
 }
 
 function selectAllReset(all){
-  const keys=['orders','transactions','clients','finance','reminders','wbalance'];
+  const keys=['orders','transactions','clients','finance','reminders','wbalance','woylik','wdebt'];
   window._resetSelected=window._resetSelected||new Set();
   keys.forEach(k=>{
     if(all)window._resetSelected.add(k);else window._resetSelected.delete(k);
@@ -3225,6 +3227,18 @@ function doFullReset(){
     users.forEach(u=>{u.balance=0;u.notifications=[];u.debt=0;});
     DB.set('users',users);
     msgs.push('👨‍🔧 Ishchilar balansi');
+  }
+  if(sel.has('woylik')){
+    const users=DB.get('users');
+    users.forEach(u=>{u.totalEarned=0;u.totalPaid=0;u.periodStart=today();u.companySubsidy=0;});
+    DB.set('users',users);
+    msgs.push('💵 Oylik tarixi');
+  }
+  if(sel.has('wdebt')){
+    const users=DB.get('users');
+    users.forEach(u=>{u.debt=0;});
+    DB.set('users',users);
+    msgs.push('💸 Ishchilar qarzi');
   }
   closeModal('modalFullReset');
   toast('✅ Tozalandi: '+msgs.join(', '),'success');
