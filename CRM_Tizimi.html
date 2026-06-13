@@ -3116,20 +3116,101 @@ function openAddExpense(){
       </div>
 
       <!-- Buyurtmaga biriktirish -->
-      <div class="form-group">
+      <div class="form-group" style="position:relative">
         <label>Buyurtmaga biriktirish <span style="font-size:11px;color:var(--text2)">(ixtiyoriy)</span></label>
-        <select id="exOrderId"
+        <input type="hidden" id="exOrderId" value="">
+        <input id="exOrderSearch" placeholder="🔍 Buyurtma raqami yoki mijoz ismini yozing..."
+          autocomplete="off"
+          oninput="filterExpOrders(this.value)"
+          onfocus="filterExpOrders(this.value)"
           style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;
-          background:var(--card2);color:var(--text);font-size:13px;outline:none;font-family:inherit">
-          <option value="">— Umumiy xarajat (buyurtmasiz) —</option>
-          ${orders.map(o=>`<option value="${o.id}">${o.num} — ${o.clientName}</option>`).join('')}
-        </select>
+          background:var(--card2);color:var(--text);font-size:13px;outline:none;font-family:inherit;
+          transition:border-color .2s"
+          onfocusin="this.style.borderColor='var(--purple)'"
+          onfocusout="setTimeout(()=>{const r=document.getElementById('exOrderResults');if(r)r.style.display='none'},200)">
+        <div id="exOrderResults"
+          style="display:none;position:absolute;width:100%;background:var(--card);
+          border:1.5px solid var(--purple);border-radius:10px;margin-top:4px;
+          max-height:220px;overflow-y:auto;z-index:200;
+          box-shadow:0 8px 28px rgba(0,0,0,.35)"></div>
+        <div id="exOrderSelected" style="display:none"></div>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modalExpense')">Bekor</button>
       <button class="btn btn-danger" onclick="saveExpense()">💸 Saqlash</button>
     </div>`,'modal-md');
+
+  window._expOrders = orders;
+}
+
+function filterExpOrders(val){
+  const results=document.getElementById('exOrderResults');
+  if(!results)return;
+  const list=window._expOrders||[];
+  const v=val.trim().toLowerCase();
+
+  // Filter + sort
+  let filtered=list.filter(o=>
+    !v ||
+    o.num.toLowerCase().includes(v) ||
+    o.clientName.toLowerCase().includes(v)
+  );
+  // Raqam bo'yicha sort
+  filtered.sort((a,b)=>a.num.localeCompare(b.num));
+
+  results.style.display='block';
+  let html=`
+    <div onmousedown="selectExpOrder('','— Umumiy xarajat (buyurtmasiz) —')"
+      style="padding:10px 14px;cursor:pointer;font-size:13px;color:var(--text2);
+      border-bottom:1px solid var(--border);transition:background .12s"
+      onmouseover="this.style.background='var(--card2)'" onmouseout="this.style.background=''">
+      📋 Umumiy xarajat (buyurtmasiz)
+    </div>`;
+
+  if(!filtered.length){
+    html+='<div style="padding:12px 14px;color:var(--text2);font-size:13px">❌ Buyurtma topilmadi</div>';
+  } else {
+    html+=filtered.map(o=>`
+      <div onmousedown="selectExpOrder(${o.id},'${o.num} — ${o.clientName}')"
+        style="padding:10px 14px;cursor:pointer;border-bottom:1px solid rgba(45,45,80,.4);
+        display:flex;justify-content:space-between;align-items:center;transition:background .12s"
+        onmouseover="this.style.background='var(--card2)'" onmouseout="this.style.background=''">
+        <div>
+          <span style="color:var(--purple2);font-family:monospace;font-weight:700;font-size:13px">${o.num}</span>
+          <span style="color:var(--text);margin-left:10px;font-size:13px">${o.clientName}</span>
+        </div>
+        <span class="badge ${STATUS_CLASS[o.status]||'b-new'}" style="font-size:10px;flex-shrink:0">
+          ${STATUS_LABEL[o.status]||o.status}
+        </span>
+      </div>`).join('');
+  }
+  results.innerHTML=html;
+}
+
+function selectExpOrder(id,label){
+  document.getElementById('exOrderId').value=id;
+  document.getElementById('exOrderSearch').value=id?label:'';
+  document.getElementById('exOrderResults').style.display='none';
+  const sel=document.getElementById('exOrderSelected');
+  if(id&&sel){
+    sel.style.display='flex';
+    sel.style.cssText='display:flex;justify-content:space-between;align-items:center;'+
+      'margin-top:6px;padding:8px 12px;background:rgba(124,58,237,.12);'+
+      'border:1.5px solid rgba(124,58,237,.4);border-radius:8px;font-size:13px';
+    sel.innerHTML=`<span style="color:var(--purple2)">✅ ${label}</span>
+      <button onmousedown="clearExpOrder()" style="background:none;border:none;
+        color:var(--text2);cursor:pointer;font-size:15px;line-height:1">✕</button>`;
+  } else if(sel){
+    sel.style.display='none';
+  }
+}
+
+function clearExpOrder(){
+  document.getElementById('exOrderId').value='';
+  document.getElementById('exOrderSearch').value='';
+  const sel=document.getElementById('exOrderSelected');
+  if(sel)sel.style.display='none';
 }
 
 function saveTransaction(type){
