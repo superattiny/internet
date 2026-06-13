@@ -3220,6 +3220,34 @@ function resetAll(){
 }
 
 // ================================================================
+//  ISHCHI FIK — DINAMIK HISOBLASH
+// ================================================================
+function calcWorkerFIK(worker){
+  const allOrders = DB.get('orders').filter(o=>o.isPaid && o.masterId==worker.id);
+  const allTrs    = DB.get('transactions');
+
+  // Topgan = barcha to'langan buyurtmalardan ulush
+  const earned = allOrders.reduce((s,o)=>{
+    if(o.workerShare!==undefined) return s+(o.workerShare||0);
+    // Eski order — workerShare yo'q, hisob qilamiz
+    const orderExp = allTrs.filter(t=>t.orderId==o.id&&t.type==='expense')
+                           .reduce((ss,t)=>ss+t.amount,0);
+    const profit   = Math.max(0,(o.finalPrice||0)-orderExp);
+    return s + profit*((worker.commission||0)/100);
+  },0);
+
+  // Olgan = barcha oylik tranzaksiyalar (workerId bo'yicha)
+  const taken = allTrs.filter(t=>t.turi==='oylik'&&t.workerId==worker.id)
+                      .reduce((s,t)=>s+t.amount,0);
+
+  // Eski usulda saqlangan totalPaid ham hisobga olamiz (agar tranzaksiyada workerId yo'q bo'lsa)
+  const takenFallback = taken || (worker.totalPaid||0);
+
+  const fik = takenFallback>0 ? earned/takenFallback*100 : null;
+  return { earned, taken:takenFallback, fik };
+}
+
+// ================================================================
 //  OYLIK BERISH
 // ================================================================
 function openOylikModal(){
@@ -3237,11 +3265,11 @@ function openOylikModal(){
       <!-- Ishchilar balansi -->
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
         ${workers.map(w=>{
-          const earned=w.totalEarned||0;
-          const paid=w.totalPaid||0;
-          const fik=paid>0?Math.round(earned/paid*100):null;
-          const fikColor=fik===null?'var(--text2)':fik>=100?'var(--green)':fik>=70?'var(--yellow)':'var(--red)';
-          const fikLabel=fik===null?'—':fik>=100?`✅ ${fik}% (Yuqori)`:fik>=70?`⚠️ ${fik}% (O'rta)`:`❌ ${fik}% (Past)`;
+          const {earned, taken, fik} = calcWorkerFIK(w);
+          const fikColor = fik===null?'var(--text2)':fik>=100?'var(--green)':fik>=70?'var(--yellow)':'var(--red)';
+          const fikLabel = fik===null?'— (hali oylik olmagan)'
+            :fik>=100?`✅ ${fik.toFixed(1)}% — Yuqori (${fmtMoney(earned)} topdi, ${fmtMoney(taken)} oldi)`
+            :`❌ ${fik.toFixed(1)}% — Past (${fmtMoney(earned)} topdi, ${fmtMoney(taken)} oldi)`;
           return `
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;
           padding:12px 14px;background:var(--card2);border-radius:10px;
@@ -3315,7 +3343,7 @@ function saveOylik(){
     fin.totalExpense=(fin.totalExpense||0)+sum;
     tr.push({id:nextId(tr),type:'expense',amount:sum,
       desc:`💵 Oylik: ${w.name}`,
-      turi:'oylik',orderId:null,date:today(),by:currentUser.name});
+      turi:'oylik',workerId:w.id,orderId:null,date:today(),by:currentUser.name});
     totalTolandi+=sum;
     tolananlar.push(`${w.name}: ${fmtMoney(sum)}`);
   });
@@ -3612,9 +3640,16 @@ function buildWorkersTable(workers){
 
   return`<table><thead><tr>
     <th>Ishchi</th><th>Lavozimi</th><th>Telefon</th>
-    <th>Balansi</th><th>Qarzi</th><th>Komisyon</th><th>Holat</th><th>Amallar</th>
+    <th>Balansi</th><th>Topgan</th><th>FIK</th><th>Komisyon</th><th>Holat</th><th>Amallar</th>
   </tr></thead><tbody>
-  ${workers.map(w=>`<tr>
+  ${workers.map(w=>{
+    const {earned, taken, fik} = calcWorkerFIK(w);
+    const fikColor = fik===null?'var(--text2)':fik>=100?'var(--green)':'var(--red)';
+    const fikBadge = fik===null
+      ?`<span style="color:var(--text2);font-size:12px">—</span>`
+      :`<span style="color:${fikColor};font-weight:800;font-size:13px">${fik.toFixed(1)}%
+         <span style="font-size:10px">${fik>=100?'✅':'❌'}</span></span>`;
+    return `<tr>
     <td>
       <div style="display:flex;align-items:center;gap:9px">
         <div style="width:34px;height:34px;border-radius:50%;
@@ -3639,10 +3674,10 @@ function buildWorkersTable(workers){
       </span>
     </td>
     <td>
-      ${(w.debt||0)>0
-        ?`<span class="money red-text" style="font-weight:700">${fmtMoney(w.debt)}</span>`
-        :`<span style="color:var(--border)">—</span>`}
+      <span class="money" style="font-size:12px;color:var(--purple2)">${fmtMoney(earned)}</span>
+      ${taken>0?`<div style="font-size:10px;color:var(--text2)">oldi: ${fmtMoney(taken)}</div>`:''}
     </td>
+    <td>${fikBadge}</td>
     <td>
       ${(w.commission||0)>0
         ?`<span class="badge" style="background:rgba(124,58,237,.15);color:var(--purple2);border:1px solid rgba(124,58,237,.3)">${w.commission}%</span>`
@@ -3667,7 +3702,7 @@ function buildWorkersTable(workers){
         </button>`:''}
       </div>
     </td>
-  </tr>`).join('')}
+  </tr>`;}).join('')}
   </tbody></table>`;
 }
 
