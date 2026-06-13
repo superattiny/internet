@@ -522,7 +522,7 @@ function renderPage(name,extra){
   else if(name==='ustalar')renderUstalar();
   else if(name==='chats')renderChats();
   else if(name==='reminders')renderReminders();
-  else if(name==='archive'){if(extra)archiveTab=extra;renderArchive();}
+  else if(name==='archive')renderArchive();
   else if(name==='users')renderUsers();
 }
 function refreshAll(){
@@ -3196,8 +3196,7 @@ function saveOylik(){
     fin.totalExpense=(fin.totalExpense||0)+sum;
     tr.push({id:nextId(tr),type:'expense',amount:sum,
       desc:`💵 Oylik: ${w.name}`,
-      turi:'oylik',workerId:w.id,orderId:null,
-      method:method,date:today(),by:currentUser.name});
+      turi:'oylik',orderId:null,date:today(),by:currentUser.name});
     totalTolandi+=sum;
     tolananlar.push(`${w.name}: ${fmtMoney(sum)}`);
   });
@@ -3353,7 +3352,7 @@ function renderWorkers(){
   const allWorkers=DB.get('users').filter(u=>u.role!=='admin' && !u.fired);
   const activeWorkers=allWorkers;
   const totalBalance=activeWorkers.reduce((s,w)=>s+(w.balance||0),0);
-  const totalEarnedAll=activeWorkers.reduce((s,w)=>s+getWorkerStats(w).totalEarned,0);
+  const totalDebt=activeWorkers.reduce((s,w)=>s+(w.debt||0),0);
   const masters=activeWorkers.filter(w=>w.role==='master').length;
   const operators=activeWorkers.filter(w=>w.role==='operator').length;
 
@@ -3372,9 +3371,9 @@ function renderWorkers(){
       <div class="stat-card"><div class="stat-icon si-green">💰</div>
         <div><div class="stat-label">Umumiy balans</div>
         <div class="stat-value green-text" style="font-size:16px">${fmtMoney(totalBalance)}</div></div></div>
-      <div class="stat-card" onclick="showPage('archive','ishchilar_hisoboti')"><div class="stat-icon si-yellow">📊</div>
-        <div><div class="stat-label">Jami topgan (barcha)</div>
-        <div class="stat-value yellow-text" style="font-size:16px">${fmtMoney(totalEarnedAll)}</div></div></div>
+      <div class="stat-card"><div class="stat-icon si-red">💸</div>
+        <div><div class="stat-label">Umumiy qarz</div>
+        <div class="stat-value red-text" style="font-size:16px">${fmtMoney(totalDebt)}</div></div></div>
     </div>
 
     <!-- TOOLBAR -->
@@ -3448,200 +3447,6 @@ function buildChiqimlarTab(){
 }
 
 
-// ================================================================
-//  ISHCHI MOLIYAVIY STATISTIKA YORDAMCHI
-// ================================================================
-function getWorkerStats(w){
-  const orders=DB.get('orders');
-  const transactions=DB.get('transactions');
-  const workerOrders=orders.filter(o=>
-    (o.masterId===w.id||(o.masterIds&&o.masterIds.includes(w.id)))&&
-    o.status==='delivered'
-  );
-  const totalEarned=workerOrders.reduce((s,o)=>{
-    const comm=w.commission||0;
-    if(o.masterIds&&o.masterIds.length>1)
-      return s+Math.round((o.foyda||0)/o.masterIds.length*(comm/100));
-    return s+Math.round((o.foyda||0)*(comm/100));
-  },0);
-  const salaryPayments=transactions.filter(t=>
-    t.type==='expense'&&
-    (t.workerId===w.id||(t.turi==='oylik'&&t.desc&&t.desc.includes(w.name)))
-  );
-  const totalPaid=salaryPayments.reduce((s,t)=>s+t.amount,0);
-  return{ordersCount:workerOrders.length,totalEarned,totalPaid};
-}
-
-// ================================================================
-//  ISHCHI MOLIYAVIY HISOBOT MODALI
-//  📊 tugmasini bosib ochiladi
-//  — Komisyon tarixi, Ish haqi to'lovlari, Umumiy balansga tushgan
-// ================================================================
-function openWorkerHistoryModal(workerId){
-  const w=DB.get('users').find(u=>u.id===workerId);
-  if(!w)return;
-  const orders=DB.get('orders');
-  const transactions=DB.get('transactions');
-
-  const workerOrders=orders.filter(o=>
-    (o.masterId===w.id||(o.masterIds&&o.masterIds.includes(w.id)))&&
-    o.status==='delivered'
-  ).sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt));
-
-  const commissions=workerOrders.map(o=>{
-    const comm=w.commission||0;
-    const foyda=o.foyda||0;
-    let komisyon=(o.masterIds&&o.masterIds.length>1)
-      ?Math.round(foyda/o.masterIds.length*(comm/100))
-      :Math.round(foyda*(comm/100));
-    const shopPart=Math.max(0,(o.finalPrice||0)-komisyon-(o.yolkira||0));
-    return{o,komisyon,shopPart,foyda};
-  });
-
-  const totalEarned=commissions.reduce((s,c)=>s+c.komisyon,0);
-  const totalShopPart=commissions.reduce((s,c)=>s+c.shopPart,0);
-
-  const salaryPayments=transactions.filter(t=>
-    t.type==='expense'&&
-    (t.workerId===w.id||(t.turi==='oylik'&&t.desc&&t.desc.includes(w.name)))
-  ).sort((a,b)=>b.date.localeCompare(a.date));
-
-  const totalPaid=salaryPayments.reduce((s,t)=>s+t.amount,0);
-  const currentBalance=w.balance||0;
-
-  openModal('modalWorkerHistory',`
-    <div class="modal-header">
-      <div class="modal-title">📊 ${w.name} — Moliyaviy hisobot</div>
-      <button class="modal-close" onclick="closeModal('modalWorkerHistory')">✕</button>
-    </div>
-    <div class="modal-body">
-
-      <!-- 5 ta xulosa karta -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px">
-        <div style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.35);border-radius:12px;padding:14px">
-          <div style="font-size:22px;margin-bottom:5px">🔧</div>
-          <div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:3px">Bajargan zakazlari</div>
-          <div style="font-size:22px;font-weight:900;color:var(--blue)">${workerOrders.length} ta</div>
-        </div>
-        <div style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);border-radius:12px;padding:14px">
-          <div style="font-size:22px;margin-bottom:5px">💰</div>
-          <div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:3px">Jami ishlab topgan</div>
-          <div style="font-size:16px;font-weight:900;color:var(--yellow)">${fmtMoney(totalEarned)}</div>
-        </div>
-        <div style="background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);border-radius:12px;padding:14px">
-          <div style="font-size:22px;margin-bottom:5px">💳</div>
-          <div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:3px">Qo'lda olgan</div>
-          <div style="font-size:16px;font-weight:900;color:var(--green)">${fmtMoney(totalPaid)}</div>
-        </div>
-        <div style="background:rgba(124,58,237,.12);border:1px solid rgba(124,58,237,.35);border-radius:12px;padding:14px">
-          <div style="font-size:22px;margin-bottom:5px">🏦</div>
-          <div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:3px">Joriy balans (qoldiq)</div>
-          <div style="font-size:16px;font-weight:900;color:var(--purple2)">${fmtMoney(currentBalance)}</div>
-        </div>
-        <div style="background:rgba(6,182,212,.12);border:1px solid rgba(6,182,212,.35);border-radius:12px;padding:14px">
-          <div style="font-size:22px;margin-bottom:5px">🏪</div>
-          <div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:3px">Umumiy balansga tushgan</div>
-          <div style="font-size:16px;font-weight:900;color:var(--cyan)">${fmtMoney(totalShopPart)}</div>
-        </div>
-      </div>
-
-      <!-- Hisob-kitob formulasi -->
-      <div style="padding:10px 14px;background:var(--card2);border-radius:10px;margin-bottom:16px;
-        font-size:13px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <span style="color:var(--text2)">📐 Hisob-kitob:</span>
-        <span>Topgan <b style="color:var(--yellow)">${fmtMoney(totalEarned)}</b></span>
-        <span style="color:var(--text2)">−</span>
-        <span>Olgan <b style="color:var(--green)">${fmtMoney(totalPaid)}</b></span>
-        <span style="color:var(--text2)">=</span>
-        <b style="color:var(--purple2);font-size:15px">${fmtMoney(currentBalance)}</b>
-        <span style="color:var(--text2)">(joriy balans)</span>
-        <span style="margin-left:auto;font-size:11px;color:var(--text2)">
-          Komisyon foizi: <b style="color:var(--purple2)">${w.commission||0}%</b>
-        </span>
-      </div>
-
-      <!-- Tablar -->
-      <div style="display:flex;gap:4px;margin-bottom:14px;background:var(--card2);padding:4px;border-radius:10px;width:fit-content">
-        <button id="whTab1"
-          onclick="document.getElementById('whBody1').style.display='block';document.getElementById('whBody2').style.display='none';this.style.background='var(--yellow)';this.style.color='#0f172a';document.getElementById('whTab2').style.background='transparent';document.getElementById('whTab2').style.color='var(--text2)';"
-          style="padding:7px 14px;border-radius:7px;border:none;cursor:pointer;font-weight:700;font-size:13px;background:var(--yellow);color:#0f172a;transition:all .15s">
-          💰 Komisyon tarixi (${workerOrders.length})
-        </button>
-        <button id="whTab2"
-          onclick="document.getElementById('whBody1').style.display='none';document.getElementById('whBody2').style.display='block';this.style.background='var(--green)';this.style.color='white';document.getElementById('whTab1').style.background='transparent';document.getElementById('whTab1').style.color='var(--text2)';"
-          style="padding:7px 14px;border-radius:7px;border:none;cursor:pointer;font-weight:700;font-size:13px;background:transparent;color:var(--text2);transition:all .15s">
-          💳 Ish haqi to'lovlari (${salaryPayments.length})
-        </button>
-      </div>
-
-      <!-- Tab 1: Komisyon tarixi -->
-      <div id="whBody1">
-        ${commissions.length===0?`
-          <div class="empty-state"><div class="empty-icon">📋</div>
-          <div class="empty-title">Hali komisyon hisoblanmagan</div></div>`:`
-          <div class="table-wrap" style="border-radius:12px">
-            <table><thead><tr>
-              <th>Zakaz №</th><th>Sana</th><th>Mijoz</th>
-              <th>Zakaz narxi</th><th>Foyda</th><th>Foiz</th>
-              <th>Komisyon</th><th>Balansga tushgan</th>
-            </tr></thead><tbody>
-            ${commissions.map(({o,komisyon,shopPart})=>`<tr>
-              <td style="font-family:monospace;font-weight:700;color:var(--purple2)">${o.num}</td>
-              <td style="font-size:12px;color:var(--text2)">${fmtDateOnly(o.updatedAt)}</td>
-              <td style="font-weight:600">${o.clientName}</td>
-              <td class="money" style="font-weight:700">${fmtMoney(o.finalPrice||0)}</td>
-              <td class="money green-text">${fmtMoney(o.foyda||0)}</td>
-              <td><span class="badge" style="background:rgba(124,58,237,.15);color:var(--purple2);border:1px solid rgba(124,58,237,.3)">${w.commission||0}%</span></td>
-              <td><span class="money" style="font-weight:900;color:var(--yellow);font-size:14px">+${fmtMoney(komisyon)}</span></td>
-              <td><span class="money" style="font-weight:700;color:var(--cyan)">${fmtMoney(shopPart)}</span></td>
-            </tr>`).join('')}
-            </tbody><tfoot>
-              <tr style="background:rgba(245,158,11,.1);border-top:2px solid rgba(245,158,11,.3)">
-                <td colspan="6" style="padding:10px 14px;font-weight:700;color:var(--yellow);text-align:right">Jami komisyon:</td>
-                <td style="padding:10px 14px;font-family:monospace;font-weight:900;color:var(--yellow);font-size:15px">${fmtMoney(totalEarned)}</td>
-                <td style="padding:10px 14px;font-family:monospace;font-weight:900;color:var(--cyan);font-size:15px">${fmtMoney(totalShopPart)}</td>
-              </tr>
-            </tfoot></table>
-          </div>`}
-      </div>
-
-      <!-- Tab 2: Ish haqi to'lovlari -->
-      <div id="whBody2" style="display:none">
-        ${salaryPayments.length===0?`
-          <div class="empty-state"><div class="empty-icon">💳</div>
-          <div class="empty-title">Hali ish haqi to'lovi amalga oshirilmagan</div></div>`:`
-          <div class="table-wrap" style="border-radius:12px">
-            <table><thead><tr>
-              <th>Sana</th><th>Summa</th><th>To'lov usuli</th><th>Kim to'ladi</th><th>Izoh</th>
-            </tr></thead><tbody>
-            ${salaryPayments.map(t=>`<tr>
-              <td style="font-size:12px;color:var(--text2)">${fmtDateOnly(t.date)}</td>
-              <td><span class="money red-text" style="font-weight:900;font-size:14px">−${fmtMoney(t.amount)}</span></td>
-              <td><span class="badge b-done" style="font-size:11px">
-                ${!t.method||t.method==='cash'?'💵 Naqd':t.method==='card'?'💳 Karta':'🏦 O\'tkazma'}
-              </span></td>
-              <td style="font-size:12px;color:var(--text2)">${t.by||'—'}</td>
-              <td style="font-size:12px;color:var(--text2)">${t.desc||'—'}</td>
-            </tr>`).join('')}
-            </tbody><tfoot>
-              <tr style="background:rgba(239,68,68,.08);border-top:2px solid rgba(239,68,68,.3)">
-                <td colspan="4" style="padding:10px 14px;font-weight:700;color:var(--red);text-align:right">Jami to'langan:</td>
-                <td style="padding:10px 14px;font-family:monospace;font-weight:900;color:var(--red);font-size:15px">−${fmtMoney(totalPaid)}</td>
-              </tr>
-            </tfoot></table>
-          </div>`}
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalWorkerHistory')">Yopish</button>
-      <button class="btn btn-success" onclick="closeModal('modalWorkerHistory');openSalaryModal(${workerId})"
-        ${currentBalance<=0?'disabled style="opacity:.4"':''}>
-        💳 Ish haqi to'lash
-      </button>
-    </div>
-  `,'modal-lg');
-}
-
 function buildWorkersTable(workers){
   // Faqat bo'shatilmaganlarni ko'rsatamiz — bo'shatilganlar arxivda
   workers = workers.filter(w => !w.fired);
@@ -3654,12 +3459,9 @@ function buildWorkersTable(workers){
 
   return`<table><thead><tr>
     <th>Ishchi</th><th>Lavozimi</th><th>Telefon</th>
-    <th>Zakazlar</th><th>Jami topgan</th><th>Olingan</th>
-    <th>Balans</th><th>Komisyon</th><th>Holat</th><th>Amallar</th>
+    <th>Balansi</th><th>Qarzi</th><th>Komisyon</th><th>Holat</th><th>Amallar</th>
   </tr></thead><tbody>
-  ${workers.map(w=>{
-    const st=getWorkerStats(w);
-    return`<tr>
+  ${workers.map(w=>`<tr>
     <td>
       <div style="display:flex;align-items:center;gap:9px">
         <div style="width:34px;height:34px;border-radius:50%;
@@ -3678,25 +3480,15 @@ function buildWorkersTable(workers){
       </span>
     </td>
     <td style="font-family:monospace;font-size:13px">${w.phone||'<span style="color:var(--border)">—</span>'}</td>
-    <td style="text-align:center">
-      ${st.ordersCount>0
-        ?`<span style="font-weight:700;font-size:13px;color:var(--blue);background:rgba(59,130,246,.12);padding:3px 10px;border-radius:20px">${st.ordersCount}</span>`
-        :`<span style="color:var(--border)">—</span>`}
-    </td>
     <td>
-      <span class="money" style="font-weight:700;color:${st.totalEarned>0?'var(--yellow)':'var(--text2)'}">
-        ${st.totalEarned>0?fmtMoney(st.totalEarned):'<span style="color:var(--border)">—</span>'}
-      </span>
-    </td>
-    <td>
-      <span class="money" style="font-weight:700;color:${st.totalPaid>0?'var(--green)':'var(--text2)'}">
-        ${st.totalPaid>0?fmtMoney(st.totalPaid):'<span style="color:var(--border)">—</span>'}
-      </span>
-    </td>
-    <td>
-      <span class="money" style="font-weight:700;color:${(w.balance||0)>0?'var(--purple2)':'var(--text2)'}">
+      <span class="money" style="font-weight:700;color:${(w.balance||0)>0?'var(--green)':'var(--text2)'}">
         ${fmtMoney(w.balance||0)}
       </span>
+    </td>
+    <td>
+      ${(w.debt||0)>0
+        ?`<span class="money red-text" style="font-weight:700">${fmtMoney(w.debt)}</span>`
+        :`<span style="color:var(--border)">—</span>`}
     </td>
     <td>
       ${(w.commission||0)>0
@@ -3706,11 +3498,9 @@ function buildWorkersTable(workers){
     <td><span class="badge ${w.active?'b-done':'b-cancelled'}">${w.active?'✅ Faol':'🔒 Bloklangan'}</span></td>
     <td>
       <div class="td-actions">
-        <button class="btn btn-sm btn-blue" onclick="openWorkerHistoryModal(${w.id})"
-          title="Moliyaviy hisobot ko'rish" style="font-size:14px">📊</button>
         <button class="btn btn-sm btn-success" onclick="openSalaryModal(${w.id})"
           title="Ish haqi to'lash" ${!w.active||!(w.balance>0)?'disabled style="opacity:.4"':''}>💳</button>
-        <button class="btn btn-sm btn-yellow" onclick="openDebtModal(${w.id})"
+        <button class="btn btn-sm btn-blue" onclick="openDebtModal(${w.id})"
           title="Qarz belgilash">💸</button>
         <button class="btn btn-sm btn-purple" onclick="openToolsModal(${w.id})"
           title="Asbob-uskunalar">🔧</button>
@@ -3720,11 +3510,11 @@ function buildWorkersTable(workers){
         <button class="btn btn-sm ${w.active?'btn-danger':'btn-success'}"
           onclick="toggleWorker(${w.id})"
           title="${w.active?'Ishdan bo\'shatish':'Qayta ishga olish'}">
-          ${w.active?'🚫':'🔓'}
+          ${w.active?'🚫 Ishdan bo\'shatish':'🔓 Qayta olish'}
         </button>`:''}
       </div>
     </td>
-  </tr>`;}).join('')}
+  </tr>`).join('')}
   </tbody></table>`;
 }
 
@@ -4266,11 +4056,7 @@ function saveSalary(wId){
   fin.balance-=amount;fin.totalExpense=(fin.totalExpense||0)+amount;
   DB.setObj('finance',fin);
   const tr=DB.get('transactions');
-  tr.push({id:nextId(tr),type:'expense',amount,
-    desc:`Ish haqi: ${w.name}`,turi:'oylik',
-    workerId:w.id,
-    method:document.getElementById('salMethod')?.value||'cash',
-    by:currentUser.name,date:today()});
+  tr.push({id:nextId(tr),type:'expense',amount,desc:`Ish haqi: ${w.name}`,date:today()});
   DB.set('transactions',tr);
   closeModal('modalSalary');
   toast(`✅ ${w.name}ga ${fmtMoney(amount)} to'landi`);
@@ -4434,128 +4220,6 @@ function deleteReminder(id){
 //  ARXIV SAHIFASI — 2 bo'lim + sana filter
 // ================================================================
 let archiveTab='orders';
-
-// ================================================================
-//  ISHCHILAR MOLIYAVIY HISOBOTI JADVALI (Arxiv ichida)
-// ================================================================
-function buildWorkersFinanceSummary(){
-  const workers=DB.get('users').filter(u=>u.role!=='admin');
-  if(!workers.length)return`<div class="empty-state">
-    <div class="empty-icon">👷</div><div class="empty-title">Ishchilar yo'q</div></div>`;
-
-  const rows=workers.map(w=>{
-    const st=getWorkerStats(w);
-    // Umumiy balansga tushgan hisoblash
-    const workerOrders=DB.get('orders').filter(o=>
-      (o.masterId===w.id||(o.masterIds&&o.masterIds.includes(w.id)))&&
-      o.status==='delivered'
-    );
-    const totalShopPart=workerOrders.reduce((s,o)=>{
-      const comm=w.commission||0;
-      const komisyon=(o.masterIds&&o.masterIds.length>1)
-        ?Math.round((o.foyda||0)/o.masterIds.length*(comm/100))
-        :Math.round((o.foyda||0)*(comm/100));
-      return s+Math.max(0,(o.finalPrice||0)-komisyon-(o.yolkira||0));
-    },0);
-
-    return{w,st,totalShopPart};
-  });
-
-  const sumOrders  = rows.reduce((s,r)=>s+r.st.ordersCount,0);
-  const sumEarned  = rows.reduce((s,r)=>s+r.st.totalEarned,0);
-  const sumPaid    = rows.reduce((s,r)=>s+r.st.totalPaid,0);
-  const sumBalance = rows.reduce((s,r)=>s+(r.w.balance||0),0);
-  const sumShop    = rows.reduce((s,r)=>s+r.totalShopPart,0);
-
-  return`
-  <!-- Umumiy xulosa kartalar -->
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:18px">
-    <div style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.35);border-radius:12px;padding:14px">
-      <div style="font-size:20px;margin-bottom:4px">🔧</div>
-      <div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:3px">Jami bajargan zakazlar</div>
-      <div style="font-size:24px;font-weight:900;color:var(--blue)">${sumOrders} ta</div>
-    </div>
-    <div style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);border-radius:12px;padding:14px">
-      <div style="font-size:20px;margin-bottom:4px">💰</div>
-      <div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:3px">Jami ishlab topgan</div>
-      <div style="font-size:17px;font-weight:900;color:var(--yellow)">${fmtMoney(sumEarned)}</div>
-    </div>
-    <div style="background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);border-radius:12px;padding:14px">
-      <div style="font-size:20px;margin-bottom:4px">💳</div>
-      <div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:3px">Qo'lda olgan (to'langan)</div>
-      <div style="font-size:17px;font-weight:900;color:var(--green)">${fmtMoney(sumPaid)}</div>
-    </div>
-    <div style="background:rgba(124,58,237,.12);border:1px solid rgba(124,58,237,.35);border-radius:12px;padding:14px">
-      <div style="font-size:20px;margin-bottom:4px">🏦</div>
-      <div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:3px">Joriy umumiy balans</div>
-      <div style="font-size:17px;font-weight:900;color:var(--purple2)">${fmtMoney(sumBalance)}</div>
-    </div>
-    <div style="background:rgba(6,182,212,.12);border:1px solid rgba(6,182,212,.35);border-radius:12px;padding:14px">
-      <div style="font-size:20px;margin-bottom:4px">🏪</div>
-      <div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:3px">Umumiy balansga tushgan</div>
-      <div style="font-size:17px;font-weight:900;color:var(--cyan)">${fmtMoney(sumShop)}</div>
-    </div>
-  </div>
-
-  <!-- Jadval -->
-  <div class="card">
-    <div class="card-header" style="padding-bottom:12px">
-      <div class="card-title">👷 Ishchilar moliyaviy hisoboti</div>
-      <span style="font-size:13px;color:var(--text2)">Jami: <b>${workers.length}</b> ta ishchi</span>
-    </div>
-    <div class="table-wrap" style="border:none;border-radius:0">
-      <table><thead><tr>
-        <th>Ishchi</th><th>Rol</th>
-        <th>Bajargan zakazlari</th>
-        <th>Jami ishlab topgan</th>
-        <th>Qo'lda olgan</th>
-        <th>Joriy balans</th>
-        <th>Umumiy balansga</th>
-        <th>Komisyon</th>
-        <th>Amal</th>
-      </tr></thead><tbody>
-      ${rows.map(({w,st,totalShopPart})=>`<tr>
-        <td>
-          <div style="display:flex;align-items:center;gap:9px">
-            <div style="width:32px;height:32px;border-radius:50%;
-              background:linear-gradient(135deg,var(--purple),var(--purple2));
-              display:flex;align-items:center;justify-content:center;
-              font-size:13px;font-weight:700;flex-shrink:0">${w.name[0]}</div>
-            <div>
-              <div style="font-weight:600;font-size:13px">${w.name}</div>
-              <div style="font-size:11px;color:var(--text2)">${w.active?'✅ Faol':'🔒 Block'}</div>
-            </div>
-          </div>
-        </td>
-        <td><span class="badge ${w.role==='master'?'b-master':'b-operator'}">
-          ${w.role==='master'?'👷 Usta':'🖥 Operator'}</span></td>
-        <td style="text-align:center;font-weight:800;color:var(--blue);font-size:15px">${st.ordersCount}</td>
-        <td class="money" style="font-weight:800;color:var(--yellow)">${fmtMoney(st.totalEarned)}</td>
-        <td class="money" style="font-weight:800;color:var(--green)">${fmtMoney(st.totalPaid)}</td>
-        <td class="money" style="font-weight:800;color:var(--purple2)">${fmtMoney(w.balance||0)}</td>
-        <td class="money" style="font-weight:800;color:var(--cyan)">${fmtMoney(totalShopPart)}</td>
-        <td><span class="badge" style="background:rgba(124,58,237,.15);color:var(--purple2);border:1px solid rgba(124,58,237,.3)">${w.commission||0}%</span></td>
-        <td>
-          <button class="btn btn-sm btn-blue" onclick="openWorkerHistoryModal(${w.id})" style="white-space:nowrap">
-            📊 Batafsil
-          </button>
-        </td>
-      </tr>`).join('')}
-      </tbody>
-      <tfoot>
-        <tr style="background:var(--card2);border-top:2px solid var(--border)">
-          <td colspan="2" style="padding:12px 14px;font-weight:800;color:var(--text)">📊 Jami:</td>
-          <td style="padding:12px 14px;text-align:center;font-weight:900;color:var(--blue);font-size:16px">${sumOrders}</td>
-          <td style="padding:12px 14px;font-family:monospace;font-weight:900;color:var(--yellow);font-size:15px">${fmtMoney(sumEarned)}</td>
-          <td style="padding:12px 14px;font-family:monospace;font-weight:900;color:var(--green);font-size:15px">${fmtMoney(sumPaid)}</td>
-          <td style="padding:12px 14px;font-family:monospace;font-weight:900;color:var(--purple2);font-size:15px">${fmtMoney(sumBalance)}</td>
-          <td style="padding:12px 14px;font-family:monospace;font-weight:900;color:var(--cyan);font-size:15px">${fmtMoney(sumShop)}</td>
-          <td colspan="2"></td>
-        </tr>
-      </tfoot></table>
-    </div>
-  </div>`;
-}
 let archiveDateFrom='';
 let archiveDateTo='';
 
@@ -4665,13 +4329,6 @@ function renderArchive(){
           ${firedUsers.length>0?`<span style="background:rgba(255,255,255,.3);
             border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px">
             ${firedUsers.length}</span>`:''}
-        </button>
-        <button onclick="archiveTab='ishchilar_hisoboti';renderArchive()"
-          style="padding:8px 20px;border-radius:9px;border:none;cursor:pointer;
-          font-weight:700;font-size:13px;transition:all .15s;
-          background:${archiveTab==='ishchilar_hisoboti'?'var(--yellow)':'transparent'};
-          color:${archiveTab==='ishchilar_hisoboti'?'#0f172a':'var(--text2)'}">
-          💰 Ishchilar hisoboti
         </button>
       </div>
       <button onclick="resetArchive()" class="btn btn-sm"
@@ -4805,9 +4462,6 @@ function renderArchive(){
       }).join('')}
       </tbody></table>`}
     </div>`:''}
-
-    <!-- TAB 4: ISHCHILAR MOLIYAVIY HISOBOTI -->
-    ${archiveTab==='ishchilar_hisoboti'?buildWorkersFinanceSummary():''}
   `;
 }
 

@@ -1,7 +1,7 @@
 // ================================================
 // Workers.jsx — Ishchilar boshqaruv sahifasi
 // Qo'shish, ko'rish, tahrirlash, o'chirish
-// Balans, komisyon, oylik tarixi, hisobot
+// Balans, qarz, lavozim
 // ================================================
 
 import { useEffect, useState } from 'react';
@@ -24,7 +24,6 @@ function Badge({ children, color = 'blue' }) {
     yellow: { bg: '#fefce8', text: '#a16207', border: '#fde68a' },
     purple: { bg: '#faf5ff', text: '#7e22ce', border: '#e9d5ff' },
     gray:   { bg: '#f8fafc', text: '#64748b', border: '#e2e8f0' },
-    teal:   { bg: '#f0fdfa', text: '#0f766e', border: '#99f6e4' },
   };
   const c = colors[color] || colors.blue;
   return (
@@ -48,7 +47,7 @@ function Modal({ isOpen, onClose, title, children, footer, size = 'md' }) {
   }, [isOpen]);
 
   if (!isOpen) return null;
-  const maxW = { sm: 420, md: 560, lg: 800, xl: 960 }[size] || 560;
+  const maxW = { sm: 420, md: 560, lg: 720 }[size] || 560;
 
   return (
     <div
@@ -115,366 +114,6 @@ const inputStyle = (err) => ({
   fontFamily: 'inherit', color: '#1e293b', background: 'white',
   boxSizing: 'border-box',
 });
-
-// ================================================================
-//  ISHCHI MOLIYAVIY HISOBOT MODALI
-//  — Komisyon tarixi, ish haqi to'lovlari, oylik xulosa
-// ================================================================
-function WorkerHistoryModal({ isOpen, onClose, worker }) {
-  const [history, setHistory] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('commissions');
-
-  useEffect(() => {
-    if (!isOpen || !worker) return;
-    setHistory(null);
-    setActiveTab('commissions');
-    setLoading(true);
-    workersApi.getBalanceHistory(worker.id)
-      .then(data => setHistory(data))
-      .catch(() => toast.error('Tarix yuklanmadi'))
-      .finally(() => setLoading(false));
-  }, [isOpen, worker]);
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '—';
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('uz-UZ', {
-      day: '2-digit', month: '2-digit', year: 'numeric',
-    });
-  };
-
-  const summaryCards = history ? [
-    {
-      icon: '🔧',
-      label: 'Bajargan zakazlari',
-      value: `${worker.total_orders_done ?? 0} ta`,
-      color: '#2563eb',
-      bg: '#eff6ff',
-    },
-    {
-      icon: '💰',
-      label: 'Jami ishlab topgan',
-      value: formatMoney(history.total_earned),
-      color: '#d97706',
-      bg: '#fffbeb',
-    },
-    {
-      icon: '💳',
-      label: 'Qo\'lda olgan (to\'langan)',
-      value: formatMoney(history.total_paid_out),
-      color: '#16a34a',
-      bg: '#f0fdf4',
-    },
-    {
-      icon: '🏦',
-      label: 'Joriy balans (qoldiq)',
-      value: formatMoney(history.balance),
-      color: history.balance > 0 ? '#7c3aed' : '#64748b',
-      bg: history.balance > 0 ? '#faf5ff' : '#f8fafc',
-    },
-  ] : [];
-
-  return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={`📊 ${worker?.full_name || ''} — Moliyaviy hisobot`}
-      size="xl"
-      footer={
-        <button
-          onClick={onClose}
-          style={{
-            padding: '9px 22px', borderRadius: 8,
-            border: '1.5px solid #e2e8f0', background: 'white',
-            cursor: 'pointer', fontWeight: 600,
-          }}
-        >
-          Yopish
-        </button>
-      }
-    >
-      {loading ? (
-        <div style={{
-          display: 'flex', justifyContent: 'center', alignItems: 'center',
-          padding: 60, gap: 12, color: '#94a3b8',
-        }}>
-          <div style={{
-            width: 28, height: 28, border: '3px solid #e2e8f0',
-            borderTopColor: '#2563eb', borderRadius: '50%',
-            animation: 'spin .7s linear infinite',
-          }} />
-          Yuklanmoqda...
-        </div>
-      ) : !history ? (
-        <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>
-          Ma'lumot topilmadi
-        </div>
-      ) : (
-        <div>
-          {/* ── Umumiy xulosa kartalar ─────────────────────────────── */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-            gap: 12, marginBottom: 24,
-          }}>
-            {summaryCards.map((card, i) => (
-              <div key={i} style={{
-                background: card.bg,
-                border: `1px solid ${card.color}30`,
-                borderRadius: 12, padding: '14px 16px',
-              }}>
-                <div style={{ fontSize: 22, marginBottom: 6 }}>{card.icon}</div>
-                <div style={{ fontSize: 11.5, color: '#64748b', fontWeight: 500, marginBottom: 3 }}>
-                  {card.label}
-                </div>
-                <div style={{
-                  fontSize: 17, fontWeight: 800, color: card.color,
-                  fontFamily: 'monospace', lineHeight: 1.2,
-                }}>
-                  {card.value}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* ── Oylik natija hisob-kitobi ─────────────────────────── */}
-          <div style={{
-            background: '#f8fafc', border: '1px solid #e2e8f0',
-            borderRadius: 10, padding: '12px 16px', marginBottom: 20,
-            display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center',
-          }}>
-            <div style={{ fontSize: 13, color: '#64748b' }}>
-              <span style={{ fontWeight: 600, color: '#0f172a' }}>Hisob-kitob:</span>
-              {' '}Jami topgan{' '}
-              <span style={{ fontWeight: 700, color: '#d97706' }}>
-                {formatMoney(history.total_earned)}
-              </span>
-              {' '}— Qo'lda olgan{' '}
-              <span style={{ fontWeight: 700, color: '#16a34a' }}>
-                {formatMoney(history.total_paid_out)}
-              </span>
-              {' '}={' '}
-              <span style={{ fontWeight: 800, color: '#7c3aed', fontSize: 14 }}>
-                {formatMoney(history.balance)}
-              </span>
-              {' '}(joriy balans)
-            </div>
-            <div style={{
-              marginLeft: 'auto',
-              fontSize: 11, color: '#94a3b8',
-            }}>
-              Komisyon foizi: <b style={{ color: '#2563eb' }}>{worker?.commission_percent ?? 0}%</b>
-              {(worker?.salary_rate ?? 0) > 0 && (
-                <span style={{ marginLeft: 12 }}>
-                  Oylik stavka: <b style={{ color: '#d97706' }}>{formatMoney(worker.salary_rate)}</b>
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* ── Tab navlar ────────────────────────────────────────── */}
-          <div style={{
-            display: 'flex', gap: 8, marginBottom: 16,
-            borderBottom: '2px solid #f1f5f9', paddingBottom: 0,
-          }}>
-            {[
-              { key: 'commissions', label: `💰 Komisyonlar (${history.commissions.length})` },
-              { key: 'payments',    label: `💳 Ish haqi to'lovlari (${history.salary_payments.length})` },
-            ].map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                style={{
-                  padding: '9px 16px', border: 'none', background: 'none',
-                  cursor: 'pointer', fontWeight: 600, fontSize: 13.5,
-                  color: activeTab === tab.key ? '#2563eb' : '#64748b',
-                  borderBottom: `2px solid ${activeTab === tab.key ? '#2563eb' : 'transparent'}`,
-                  marginBottom: -2,
-                  transition: 'all .15s',
-                }}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {/* ── Tab: Komisyonlar ──────────────────────────────────── */}
-          {activeTab === 'commissions' && (
-            history.commissions.length === 0 ? (
-              <div style={{
-                textAlign: 'center', padding: '40px 20px',
-                color: '#94a3b8', fontSize: 14,
-              }}>
-                <div style={{ fontSize: 36, marginBottom: 10 }}>📋</div>
-                Hali hech qanday komisyon hisoblanmagan
-              </div>
-            ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                  <thead>
-                    <tr style={{ background: '#f8fafc' }}>
-                      {['Zakaz №', 'Sana', 'Mijoz', 'TV', 'Zakaz narxi', 'Foiz', 'Komisyon'].map(h => (
-                        <th key={h} style={{
-                          padding: '9px 12px', textAlign: 'left',
-                          fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
-                          letterSpacing: '0.04em', color: '#64748b',
-                          borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap',
-                        }}>
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {history.commissions.map((c, i) => (
-                      <tr key={c.order_id} style={{
-                        borderBottom: '1px solid #f8fafc',
-                        background: i % 2 === 0 ? 'white' : '#fafafa',
-                      }}>
-                        <td style={{ padding: '10px 12px' }}>
-                          <span style={{
-                            fontFamily: 'monospace', fontWeight: 700,
-                            color: '#2563eb', fontSize: 12.5,
-                          }}>
-                            {c.order_number}
-                          </span>
-                        </td>
-                        <td style={{ padding: '10px 12px', color: '#64748b', fontSize: 12 }}>
-                          {formatDate(c.order_date)}
-                        </td>
-                        <td style={{ padding: '10px 12px', fontWeight: 500, color: '#0f172a' }}>
-                          {c.client_name}
-                        </td>
-                        <td style={{ padding: '10px 12px', color: '#64748b', fontSize: 12 }}>
-                          {c.tv_info}
-                        </td>
-                        <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontWeight: 600 }}>
-                          {formatMoney(c.final_price)}
-                        </td>
-                        <td style={{ padding: '10px 12px' }}>
-                          <Badge color="purple">{c.commission_percent.toFixed(0)}%</Badge>
-                        </td>
-                        <td style={{ padding: '10px 12px' }}>
-                          <span style={{
-                            fontFamily: 'monospace', fontWeight: 800,
-                            color: '#16a34a', fontSize: 13.5,
-                          }}>
-                            +{formatMoney(c.commission_amount)}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr style={{ background: '#f0fdf4', borderTop: '2px solid #bbf7d0' }}>
-                      <td colSpan={6} style={{
-                        padding: '10px 12px', fontWeight: 700,
-                        color: '#15803d', textAlign: 'right', fontSize: 13,
-                      }}>
-                        Jami komisyon:
-                      </td>
-                      <td style={{
-                        padding: '10px 12px', fontFamily: 'monospace',
-                        fontWeight: 800, color: '#15803d', fontSize: 15,
-                      }}>
-                        {formatMoney(history.total_earned)}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            )
-          )}
-
-          {/* ── Tab: Ish haqi to'lovlari ──────────────────────────── */}
-          {activeTab === 'payments' && (
-            history.salary_payments.length === 0 ? (
-              <div style={{
-                textAlign: 'center', padding: '40px 20px',
-                color: '#94a3b8', fontSize: 14,
-              }}>
-                <div style={{ fontSize: 36, marginBottom: 10 }}>💳</div>
-                Hali hech qanday ish haqi to'lovi amalga oshirilmagan
-              </div>
-            ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                  <thead>
-                    <tr style={{ background: '#f8fafc' }}>
-                      {['Sana', 'Summa', 'To\'lov usuli', 'Kim to\'ladi', 'Izoh'].map(h => (
-                        <th key={h} style={{
-                          padding: '9px 12px', textAlign: 'left',
-                          fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
-                          letterSpacing: '0.04em', color: '#64748b',
-                          borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap',
-                        }}>
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {history.salary_payments.map((p, i) => (
-                      <tr key={p.id} style={{
-                        borderBottom: '1px solid #f8fafc',
-                        background: i % 2 === 0 ? 'white' : '#fafafa',
-                      }}>
-                        <td style={{ padding: '10px 12px', color: '#64748b', fontSize: 12 }}>
-                          {formatDate(p.created_at)}
-                        </td>
-                        <td style={{ padding: '10px 12px' }}>
-                          <span style={{
-                            fontFamily: 'monospace', fontWeight: 800,
-                            color: '#dc2626', fontSize: 13.5,
-                          }}>
-                            −{formatMoney(p.amount)}
-                          </span>
-                        </td>
-                        <td style={{ padding: '10px 12px' }}>
-                          <Badge color={
-                            p.payment_method === 'cash' ? 'green' :
-                            p.payment_method === 'card' ? 'blue' : 'teal'
-                          }>
-                            {p.payment_method === 'cash' && '💵 Naqd'}
-                            {p.payment_method === 'card' && '💳 Karta'}
-                            {p.payment_method === 'transfer' && '🏦 O\'tkazma'}
-                          </Badge>
-                        </td>
-                        <td style={{ padding: '10px 12px', color: '#374151', fontWeight: 500 }}>
-                          {p.paid_by || <span style={{ color: '#cbd5e1' }}>—</span>}
-                        </td>
-                        <td style={{ padding: '10px 12px', color: '#64748b', fontSize: 12 }}>
-                          {p.notes || <span style={{ color: '#cbd5e1' }}>—</span>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr style={{ background: '#fef2f2', borderTop: '2px solid #fca5a5' }}>
-                      <td colSpan={4} style={{
-                        padding: '10px 12px', fontWeight: 700,
-                        color: '#dc2626', textAlign: 'right', fontSize: 13,
-                      }}>
-                        Jami to'langan:
-                      </td>
-                      <td style={{
-                        padding: '10px 12px', fontFamily: 'monospace',
-                        fontWeight: 800, color: '#dc2626', fontSize: 15,
-                      }}>
-                        {formatMoney(history.total_paid_out)}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            )
-          )}
-        </div>
-      )}
-    </Modal>
-  );
-}
 
 // ── Yangi/Tahrirlash Modali ────────────────────────────────────
 function WorkerFormModal({ isOpen, onClose, onSaved, editWorker }) {
@@ -810,17 +449,16 @@ function DeleteModal({ isOpen, onClose, worker, onDeleted }) {
 export default function Workers() {
   usePageTitle('Ishchilar');
 
-  const [workers,       setWorkers]       = useState([]);
-  const [loading,       setLoading]       = useState(true);
-  const [search,        setSearch]        = useState('');
-  const [filterRole,    setFilterRole]    = useState('all');
+  const [workers,     setWorkers]     = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [search,      setSearch]      = useState('');
+  const [filterRole,  setFilterRole]  = useState('all');
 
   // Modallar
-  const [showForm,      setShowForm]      = useState(false);
-  const [editWorker,    setEditWorker]    = useState(null);
-  const [salaryWorker,  setSalaryWorker]  = useState(null);
-  const [deleteWorker,  setDeleteWorker]  = useState(null);
-  const [historyWorker, setHistoryWorker] = useState(null);   // 📊 Hisobot modali
+  const [showForm,    setShowForm]    = useState(false);
+  const [editWorker,  setEditWorker]  = useState(null);
+  const [salaryWorker,setSalaryWorker]= useState(null);
+  const [deleteWorker,setDeleteWorker]= useState(null);
 
   // ── Yuklash ────────────────────────────────────────────────
   const load = async () => {
@@ -851,26 +489,24 @@ export default function Workers() {
 
   // ── Statistika ─────────────────────────────────────────────
   const stats = {
-    total:        workers.length,
-    masters:      workers.filter(w => w.role === 'master').length,
-    operators:    workers.filter(w => w.role === 'operator').length,
+    total:      workers.length,
+    masters:    workers.filter(w => w.role === 'master').length,
+    operators:  workers.filter(w => w.role === 'operator').length,
     totalBalance: workers.reduce((s, w) => s + (w.balance || 0), 0),
-    totalEarned:  workers.reduce((s, w) => s + (w.total_earned || 0), 0),
   };
 
   return (
     <div>
       {/* ── Stat kartalar ─────────────────────────────────── */}
       <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))',
+        display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
         gap: 14, marginBottom: 20,
       }}>
         {[
-          { icon: '👥', label: 'Jami ishchilar',    value: stats.total,                              color: '#2563eb' },
-          { icon: '👷', label: 'Ustalar',            value: stats.masters,                            color: '#d97706' },
-          { icon: '🖥️', label: 'Operatorlar',        value: stats.operators,                          color: '#0891b2' },
-          { icon: '💰', label: 'Jami topgan',        value: formatMoney(stats.totalEarned),  color: '#7c3aed', small: true },
-          { icon: '🏦', label: 'Joriy umumiy balans', value: formatMoney(stats.totalBalance), color: '#16a34a', small: true },
+          { icon: '👥', label: 'Jami ishchilar', value: stats.total, color: '#2563eb' },
+          { icon: '👷', label: 'Ustalar',         value: stats.masters,   color: '#d97706' },
+          { icon: '🖥️', label: 'Operatorlar',     value: stats.operators, color: '#0891b2' },
+          { icon: '💰', label: 'Umumiy balans',   value: formatMoney(stats.totalBalance), color: '#16a34a', small: true },
         ].map((s, i) => (
           <div key={i} style={{
             background: 'white', border: '1px solid #f1f5f9', borderRadius: 12,
@@ -883,7 +519,7 @@ export default function Workers() {
             }}>{s.icon}</div>
             <div>
               <div style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>{s.label}</div>
-              <div style={{ fontSize: s.small ? 15 : 24, fontWeight: 800, color: s.color, lineHeight: 1.1 }}>
+              <div style={{ fontSize: s.small ? 16 : 24, fontWeight: 800, color: s.color, lineHeight: 1.1 }}>
                 {s.value}
               </div>
             </div>
@@ -997,18 +633,7 @@ export default function Workers() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
               <thead>
                 <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                  {[
-                    'Ishchi',
-                    'Lavozimi',
-                    'Telefon',
-                    'Zakazlar',
-                    'Jami topgan',
-                    'Qo\'lda olgan',
-                    'Joriy balans',
-                    'Komisyon',
-                    'Holat',
-                    'Amallar',
-                  ].map(h => (
+                  {['Ishchi', 'Lavozimi', 'Telefon', 'Balans', 'Qarzi', 'Komisyon', 'Holat', 'Amallar'].map(h => (
                     <th key={h} style={{
                       padding: '10px 14px', textAlign: 'left',
                       fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
@@ -1022,7 +647,6 @@ export default function Workers() {
                   <WorkerRow
                     key={worker.id}
                     worker={worker}
-                    onHistory={() => setHistoryWorker(worker)}
                     onEdit={() => { setEditWorker(worker); setShowForm(true); }}
                     onSalary={() => setSalaryWorker(worker)}
                     onDelete={() => setDeleteWorker(worker)}
@@ -1042,11 +666,6 @@ export default function Workers() {
       </div>
 
       {/* ── Modallar ──────────────────────────────────────── */}
-      <WorkerHistoryModal
-        isOpen={!!historyWorker}
-        onClose={() => setHistoryWorker(null)}
-        worker={historyWorker}
-      />
       <WorkerFormModal
         isOpen={showForm}
         onClose={() => { setShowForm(false); setEditWorker(null); }}
@@ -1076,8 +695,8 @@ export default function Workers() {
 }
 
 // ── Bitta qator ────────────────────────────────────────────────
-function WorkerRow({ worker, onHistory, onEdit, onSalary, onDelete, onActivate }) {
-  const initials  = getInitials(worker.full_name);
+function WorkerRow({ worker, onEdit, onSalary, onDelete, onActivate }) {
+  const initials = getInitials(worker.full_name);
   const roleColor = worker.role === 'master' ? 'yellow' : 'blue';
   const roleLabel = ROLE_LABELS[worker.role] || worker.role;
 
@@ -1113,54 +732,25 @@ function WorkerRow({ worker, onHistory, onEdit, onSalary, onDelete, onActivate }
         {worker.phone || <span style={{ color: '#cbd5e1' }}>—</span>}
       </td>
 
-      {/* Zakazlar soni */}
-      <td style={{ padding: '13px 14px', textAlign: 'center' }}>
-        {(worker.total_orders_done || 0) > 0 ? (
-          <span style={{
-            fontWeight: 700, fontSize: 13.5, color: '#2563eb',
-            background: '#eff6ff', padding: '3px 10px', borderRadius: 20,
-          }}>
-            {worker.total_orders_done}
-          </span>
-        ) : (
-          <span style={{ color: '#cbd5e1' }}>—</span>
-        )}
-      </td>
-
-      {/* Jami topgan (total_earned) */}
-      <td style={{ padding: '13px 14px' }}>
-        <span style={{
-          fontWeight: 700, fontSize: 13,
-          color: (worker.total_earned || 0) > 0 ? '#d97706' : '#94a3b8',
-          fontFamily: 'monospace',
-        }}>
-          {(worker.total_earned || 0) > 0
-            ? formatMoney(worker.total_earned)
-            : <span style={{ color: '#cbd5e1' }}>—</span>}
-        </span>
-      </td>
-
-      {/* Qo'lda olgan (total_paid_out) */}
-      <td style={{ padding: '13px 14px' }}>
-        <span style={{
-          fontWeight: 600, fontSize: 13,
-          color: (worker.total_paid_out || 0) > 0 ? '#16a34a' : '#94a3b8',
-          fontFamily: 'monospace',
-        }}>
-          {(worker.total_paid_out || 0) > 0
-            ? formatMoney(worker.total_paid_out)
-            : <span style={{ color: '#cbd5e1' }}>—</span>}
-        </span>
-      </td>
-
-      {/* Joriy balans */}
+      {/* Balans */}
       <td style={{ padding: '13px 14px' }}>
         <span style={{
           fontWeight: 700, fontSize: 13.5,
-          color: (worker.balance || 0) > 0 ? '#7c3aed' : '#94a3b8',
+          color: (worker.balance || 0) > 0 ? '#16a34a' : '#94a3b8',
           fontFamily: 'monospace',
         }}>
           {formatMoney(worker.balance || 0)}
+        </span>
+      </td>
+
+      {/* Qarzi */}
+      <td style={{ padding: '13px 14px' }}>
+        <span style={{
+          fontWeight: 600, fontSize: 13,
+          color: (worker.debt || 0) > 0 ? '#dc2626' : '#94a3b8',
+          fontFamily: 'monospace',
+        }}>
+          {(worker.debt || 0) > 0 ? formatMoney(worker.debt) : <span style={{ color: '#cbd5e1' }}>—</span>}
         </span>
       </td>
 
@@ -1182,20 +772,8 @@ function WorkerRow({ worker, onHistory, onEdit, onSalary, onDelete, onActivate }
 
       {/* Amallar */}
       <td style={{ padding: '13px 14px' }}>
-        <div style={{ display: 'flex', gap: 5, flexWrap: 'nowrap' }}>
-
-          {/* 📊 Hisobot */}
-          <button
-            onClick={onHistory}
-            title="Moliyaviy hisobot ko'rish"
-            style={{
-              padding: '5px 10px', borderRadius: 7, border: 'none',
-              background: '#eff6ff', color: '#2563eb',
-              cursor: 'pointer', fontWeight: 600, fontSize: 12,
-            }}
-          >📊</button>
-
-          {/* 💳 Ish haqi */}
+        <div style={{ display: 'flex', gap: 6 }}>
+          {/* Ish haqi */}
           <button
             onClick={onSalary}
             disabled={!worker.is_active || !worker.balance}
@@ -1209,18 +787,18 @@ function WorkerRow({ worker, onHistory, onEdit, onSalary, onDelete, onActivate }
             }}
           >💳</button>
 
-          {/* ✏️ Tahrirlash */}
+          {/* Tahrirlash */}
           <button
             onClick={onEdit}
             title="Tahrirlash"
             style={{
               padding: '5px 10px', borderRadius: 7, border: 'none',
-              background: '#f1f5f9', color: '#475569',
+              background: '#eff6ff', color: '#2563eb',
               cursor: 'pointer', fontWeight: 600, fontSize: 12,
             }}
           >✏️</button>
 
-          {/* 🗑️ Bloklash / 🔓 Faollashtirish */}
+          {/* O'chirish / Faollashtirish */}
           {worker.is_active ? (
             <button
               onClick={onDelete}
