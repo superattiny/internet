@@ -3087,7 +3087,9 @@ function openFullResetModal(){
   const clients=DB.get('clients');
   const reminders=DB.get('reminders');
   const fin=DB.getObj('finance');
+  const workers=DB.get('users').filter(u=>u.role!=='admin'&&!u.fired);
   window._resetSelected=new Set();
+  window._resetWorkers=workers;
 
   const items=[
     {key:'orders',      icon:'📋', label:'Barcha buyurtmalar',    count:orders.length+' ta'},
@@ -3095,9 +3097,16 @@ function openFullResetModal(){
     {key:'clients',     icon:'👥', label:'Mijozlar',              count:clients.length+' ta'},
     {key:'finance',     icon:'💰', label:'Balans va moliya',       count:fmtMoney(fin.balance||0)},
     {key:'reminders',   icon:'🔔', label:'Eslatmalar',            count:reminders.length+' ta'},
-    {key:'wbalance',    icon:'👨‍🔧',label:'Ishchilar balansi',     count:'0 ga tushiriladi'},
-    {key:'woylik',      icon:'💵', label:'Ishchilar oylik tarixi',count:'totalEarned, totalPaid → 0'},
+    {key:'wbalance',    icon:'👨‍🔧',label:'Barcha ishchilar balansi', count:'Hammasi 0 ga'},
+    {key:'woylik',      icon:'💵', label:'Ishchilar oylik tarixi', count:'totalEarned → 0'},
     {key:'wdebt',       icon:'💸', label:'Ishchilar qarzi',        count:'debt → 0'},
+    ...workers.map(w=>({
+      key:'w_'+w.id,
+      icon:'👤',
+      label:w.name+' balansi',
+      count:fmtMoney(w.balance||0),
+      sub:w.role==='master'?'👷 Usta':'🖥 Operator'
+    })),
   ];
 
   openModal('modalFullReset',`
@@ -3130,6 +3139,7 @@ function openFullResetModal(){
               justify-content:center;font-size:14px;font-weight:900;transition:all .15s"></div>
             <span style="font-size:16px">${item.icon}</span>
             <span style="font-size:13.5px;font-weight:600">${item.label}</span>
+            ${item.sub?`<span style="font-size:11px;color:var(--text2);margin-left:6px">${item.sub}</span>`:''}
           </div>
           <span style="font-size:12px;font-weight:700;color:var(--text2)">${item.count}</span>
         </div>`).join('')}
@@ -3186,7 +3196,9 @@ function toggleResetItem(key){
 }
 
 function selectAllReset(all){
-  const keys=['orders','transactions','clients','finance','reminders','wbalance','woylik','wdebt'];
+  const workers=window._resetWorkers||[];
+  const wkeys=workers.map(w=>'w_'+w.id);
+  const keys=['orders','transactions','clients','finance','reminders','wbalance','woylik','wdebt',...wkeys];
   window._resetSelected=window._resetSelected||new Set();
   keys.forEach(k=>{
     if(all)window._resetSelected.add(k);else window._resetSelected.delete(k);
@@ -3239,6 +3251,18 @@ function doFullReset(){
     users.forEach(u=>{u.debt=0;});
     DB.set('users',users);
     msgs.push('💸 Ishchilar qarzi');
+  }
+  // Alohida ishchi balanslari
+  const wkeys=[...sel].filter(k=>k.startsWith('w_'));
+  if(wkeys.length){
+    const users=DB.get('users');
+    wkeys.forEach(k=>{
+      const id=parseInt(k.replace('w_',''));
+      const u=users.find(x=>x.id===id);
+      if(u){u.balance=0;u.notifications=[];}
+    });
+    DB.set('users',users);
+    msgs.push('👤 '+wkeys.length+' ta ishchi balansi');
   }
   closeModal('modalFullReset');
   toast('✅ Tozalandi: '+msgs.join(', '),'success');
