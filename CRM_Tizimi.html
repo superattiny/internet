@@ -2887,13 +2887,56 @@ function saveExpense(){
   if(o){
     o.chiqimlar=o.chiqimlar||[];
     o.chiqimlar.push({nom:desc,sum:amount,date:today(),by:currentUser.name});
+
+    // ── Agar buyurtma TO'LANGAN bo'lsa — qayta hisoblash ──
+    if(o.isPaid){
+      // Yangi jami chiqim (hozirgina qo'shilgan ham bor)
+      const newTotalExp = tr.filter(t=>t.orderId==o.id&&t.type==='expense')
+                            .reduce((s,t)=>s+t.amount,0);
+      const newProfit   = Math.max(0,(o.finalPrice||0) - newTotalExp);
+
+      // Ishchi ulushini qayta hisoblash
+      const users = DB.get('users');
+      const master = o.masterId ? users.find(u=>u.id===o.masterId) : null;
+      const commPct = master ? (master.commission||0) : 0;
+      const newWorkerShare = master ? Math.round(newProfit*(commPct/100)) : 0;
+      const oldWorkerShare = o.workerShare||0;
+      const diff = newWorkerShare - oldWorkerShare; // manfiy = ishchidan ayriladi
+
+      // Ishchi balansini tuzatish
+      if(master && diff!==0){
+        master.balance = (master.balance||0) + diff;
+        master.totalEarned = (master.totalEarned||0) + diff;
+        master.notifications = master.notifications||[];
+        master.notifications.push({
+          id: nextId(master.notifications),
+          text: `🔄 ${o.num}: Chiqim qo'shildi (${fmtMoney(amount)}). Foydangiz yangilandi: ${fmtMoney(oldWorkerShare)} → ${fmtMoney(newWorkerShare)}`,
+          date: now(), orderId: o.id, read: false
+        });
+        DB.set('users', users);
+      }
+
+      // Orderni yangilash
+      o.profit       = newProfit;
+      o.workerShare  = newWorkerShare;
+      o.companyShare = newProfit - newWorkerShare;
+      o.history = o.history||[];
+      o.history.push({
+        status:'delivered',
+        comment:`🔄 Chiqim qo'shildi: ${fmtMoney(amount)} (${desc}). Yangi foyda: ${fmtMoney(newProfit)}, Ishchi: ${fmtMoney(newWorkerShare)}, Kompaniya: ${fmtMoney(newProfit-newWorkerShare)}`,
+        by:currentUser.name, date:now()
+      });
+
+      toast(`🔄 Qayta hisoblandi! Foyda: ${fmtMoney(newProfit)} | Ishchi: ${fmtMoney(newWorkerShare)}`,'info');
+    }
+
     DB.set('orders',allOrders);
   }
 
   DB.setObj('finance',fin);
   DB.set('transactions',tr);
   closeModal('modalExpense');
-  toast('💸 Chiqim saqlandi: '+fmtMoney(amount),'info');
+  if(!o?.isPaid) toast('💸 Chiqim saqlandi: '+fmtMoney(amount),'info');
   updateTopbarBalance();
   if(currentPage==='finance')renderFinance();
   if(currentPage==='dashboard')renderDashboard();
