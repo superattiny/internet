@@ -2951,174 +2951,154 @@ function resetArchive(){
 }
 
 function openFullResetModal(){
-  // Statistika hisoblash
   const orders=DB.get('orders');
   const transactions=DB.get('transactions');
   const clients=DB.get('clients');
   const reminders=DB.get('reminders');
-  const users=DB.get('users');
   const fin=DB.getObj('finance');
+  window._resetSelected=new Set();
+
+  const items=[
+    {key:'orders',      icon:'📋', label:'Barcha buyurtmalar',    count:orders.length+' ta'},
+    {key:'transactions',icon:'💸', label:'Kirim / Chiqim tarixi', count:transactions.length+' ta'},
+    {key:'clients',     icon:'👥', label:'Mijozlar',              count:clients.length+' ta'},
+    {key:'finance',     icon:'💰', label:'Balans va moliya',       count:fmtMoney(fin.balance||0)},
+    {key:'reminders',   icon:'🔔', label:'Eslatmalar',            count:reminders.length+' ta'},
+    {key:'wbalance',    icon:'👨‍🔧',label:'Ishchilar balansi',     count:'0 ga tushiriladi'},
+  ];
 
   openModal('modalFullReset',`
     <div class="modal-header">
       <div style="display:flex;align-items:center;gap:10px">
         <div style="width:36px;height:36px;background:rgba(239,68,68,.2);border-radius:10px;
           display:flex;align-items:center;justify-content:center;font-size:20px">🔄</div>
-        <div class="modal-title" style="color:var(--red)">TO'LIQ RESET</div>
+        <div class="modal-title" style="color:var(--red)">Tanlangan bo'limlarni tozalash</div>
       </div>
       <button class="modal-close" onclick="closeModal('modalFullReset')">✕</button>
     </div>
     <div class="modal-body">
 
-      <!-- Ogohlantirish -->
-      <div style="background:rgba(239,68,68,.12);border:2px solid rgba(239,68,68,.5);
-        border-radius:12px;padding:14px 16px;margin-bottom:18px;text-align:center">
-        <div style="font-size:22px;margin-bottom:6px">⚠️</div>
-        <div style="font-weight:800;color:var(--red);font-size:15px;margin-bottom:4px">
-          DIQQAT! Bu amalni qaytarib bo'lmaydi!
-        </div>
-        <div style="font-size:13px;color:var(--text2)">
-          Quyidagi barcha ma'lumotlar o'chib ketadi
-        </div>
+      <div style="font-size:12.5px;color:var(--text2);margin-bottom:14px;
+        background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);
+        border-radius:8px;padding:10px 12px">
+        ☑️ Faqat keraklilarini belgilang — belgilanmaganlar <b style="color:var(--text)">o'CHMAYDI</b>
       </div>
 
-      <!-- Nima o'chadi -->
-      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px">
-        <div style="display:flex;align-items:center;justify-content:space-between;
-          padding:10px 14px;background:var(--card2);border-radius:10px;
-          border-left:3px solid var(--red)">
-          <div style="display:flex;align-items:center;gap:8px">
-            <span>📋</span>
-            <span style="font-size:13px;font-weight:600">Barcha buyurtmalar</span>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+        ${items.map(item=>`
+        <div id="lbl_rst_${item.key}" onclick="toggleResetItem('${item.key}')"
+          style="display:flex;align-items:center;justify-content:space-between;
+          padding:11px 14px;background:var(--card2);border-radius:10px;cursor:pointer;
+          border:2px solid var(--border);transition:all .15s;user-select:none">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div id="chk_${item.key}"
+              style="width:22px;height:22px;border-radius:6px;border:2px solid var(--border);
+              background:transparent;flex-shrink:0;display:flex;align-items:center;
+              justify-content:center;font-size:14px;font-weight:900;transition:all .15s"></div>
+            <span style="font-size:16px">${item.icon}</span>
+            <span style="font-size:13.5px;font-weight:600">${item.label}</span>
           </div>
-          <span style="font-size:13px;font-weight:800;color:var(--red)">${orders.length} ta</span>
-        </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;
-          padding:10px 14px;background:var(--card2);border-radius:10px;
-          border-left:3px solid var(--red)">
-          <div style="display:flex;align-items:center;gap:8px">
-            <span>💸</span>
-            <span style="font-size:13px;font-weight:600">Kirim / Chiqim tarixi</span>
-          </div>
-          <span style="font-size:13px;font-weight:800;color:var(--red)">${transactions.length} ta</span>
-        </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;
-          padding:10px 14px;background:var(--card2);border-radius:10px;
-          border-left:3px solid var(--red)">
-          <div style="display:flex;align-items:center;gap:8px">
-            <span>👥</span>
-            <span style="font-size:13px;font-weight:600">Mijozlar</span>
-          </div>
-          <span style="font-size:13px;font-weight:800;color:var(--red)">${clients.length} ta</span>
-        </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;
-          padding:10px 14px;background:var(--card2);border-radius:10px;
-          border-left:3px solid var(--red)">
-          <div style="display:flex;align-items:center;gap:8px">
-            <span>💰</span>
-            <span style="font-size:13px;font-weight:600">Balans va moliya</span>
-          </div>
-          <span style="font-size:13px;font-weight:800;color:var(--red)">${fmtMoney(fin.balance||0)}</span>
-        </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;
-          padding:10px 14px;background:var(--card2);border-radius:10px;
-          border-left:3px solid var(--red)">
-          <div style="display:flex;align-items:center;gap:8px">
-            <span>🔔</span>
-            <span style="font-size:13px;font-weight:600">Eslatmalar</span>
-          </div>
-          <span style="font-size:13px;font-weight:800;color:var(--red)">${reminders.length} ta</span>
-        </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;
-          padding:10px 14px;background:var(--card2);border-radius:10px;
-          border-left:3px solid var(--yellow)">
-          <div style="display:flex;align-items:center;gap:8px">
-            <span>👨‍🔧</span>
-            <span style="font-size:13px;font-weight:600">Ishchilar balansi</span>
-          </div>
-          <span style="font-size:12px;font-weight:700;color:var(--yellow)">0 ga tushiriladi</span>
-        </div>
+          <span style="font-size:12px;font-weight:700;color:var(--text2)">${item.count}</span>
+        </div>`).join('')}
       </div>
 
-      <!-- Saqlanadigan narsalar -->
-      <div style="background:rgba(16,185,129,.08);border:1.5px solid rgba(16,185,129,.3);
-        border-radius:10px;padding:12px 14px;margin-bottom:16px">
-        <div style="font-size:11px;font-weight:800;color:var(--green);margin-bottom:8px;
-          text-transform:uppercase;letter-spacing:.05em">✅ Saqlanib qoladi</div>
-        <div style="font-size:13px;color:var(--text2);display:flex;flex-direction:column;gap:4px">
-          <span>👤 Foydalanuvchilar ro'yxati (login/parol)</span>
-          <span>👨‍🔧 Ishchilar ro'yxati (faqat balansi 0 bo'ladi)</span>
-        </div>
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <button onclick="selectAllReset(true)"
+          style="flex:1;padding:8px;border-radius:8px;border:1.5px solid rgba(239,68,68,.4);
+          background:rgba(239,68,68,.08);color:var(--red);font-size:12.5px;font-weight:700;cursor:pointer">
+          ☑️ Hammasini belgilash
+        </button>
+        <button onclick="selectAllReset(false)"
+          style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--border);
+          background:transparent;color:var(--text2);font-size:12.5px;font-weight:700;cursor:pointer">
+          ☐ Hammasini olib tashlash
+        </button>
       </div>
 
-      <!-- Tasdiqlash kodi -->
-      <div class="form-group">
-        <label style="font-weight:700;color:var(--red)">
-          Tasdiqlash uchun <span style="background:var(--card2);padding:2px 8px;
-          border-radius:5px;font-family:monospace;color:var(--yellow)">RESET</span> yozing
-        </label>
-        <input id="resetConfirmInput" placeholder="RESET"
-          oninput="document.getElementById('btnDoReset').disabled=this.value!=='RESET'"
-          style="width:100%;padding:10px 14px;border:2px solid var(--red);border-radius:8px;
-          background:var(--card2);color:var(--red);font-size:18px;font-weight:900;
-          outline:none;font-family:monospace;text-align:center;letter-spacing:.15em">
+      <div id="resetWarning" style="display:none;background:rgba(239,68,68,.1);
+        border:1.5px solid rgba(239,68,68,.4);border-radius:8px;padding:10px;
+        text-align:center;font-size:13px;color:var(--red);font-weight:700">
+        ⚠️ Belgilangan ma'lumotlar qaytarib bo'lmay o'chadi!
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modalFullReset')">Bekor qilish</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalFullReset')">Bekor</button>
       <button id="btnDoReset" onclick="doFullReset()" disabled
-        style="background:var(--red);color:white;border:none;border-radius:10px;
-        padding:11px 22px;font-size:14px;font-weight:800;cursor:pointer;opacity:.4"
-        oninput="this.style.opacity=this.disabled?'.4':'1'">
-        🔄 RESET QILISH
+        style="background:rgba(239,68,68,.35);color:white;border:none;border-radius:10px;
+        padding:11px 24px;font-size:14px;font-weight:800;cursor:not-allowed;transition:all .2s">
+        🔄 Tozalash
       </button>
     </div>
   `,'modal-md');
+}
 
-  // Tugma holatini kuzatish
-  setTimeout(()=>{
-    const inp=document.getElementById('resetConfirmInput');
-    const btn=document.getElementById('btnDoReset');
-    if(inp&&btn){
-      inp.addEventListener('input',()=>{
-        const ok=inp.value==='RESET';
-        btn.disabled=!ok;
-        btn.style.opacity=ok?'1':'.4';
-        btn.style.cursor=ok?'pointer':'not-allowed';
-      });
+function toggleResetItem(key){
+  const sel=window._resetSelected=window._resetSelected||new Set();
+  const chk=document.getElementById('chk_'+key);
+  const lbl=document.getElementById('lbl_rst_'+key);
+  const selected=sel.has(key);
+  if(selected){
+    sel.delete(key);
+    if(chk){chk.textContent='';chk.style.cssText+='background:transparent;border-color:var(--border);color:inherit';}
+    if(lbl){lbl.style.borderColor='var(--border)';lbl.style.background='var(--card2)';}
+  } else {
+    sel.add(key);
+    if(chk){chk.textContent='✓';chk.style.cssText+='background:var(--red);border-color:var(--red);color:white';}
+    if(lbl){lbl.style.borderColor='rgba(239,68,68,.6)';lbl.style.background='rgba(239,68,68,.06)';}
+  }
+  const btn=document.getElementById('btnDoReset');
+  const warn=document.getElementById('resetWarning');
+  if(btn){const ok=sel.size>0;btn.disabled=!ok;btn.style.background=ok?'var(--red)':'rgba(239,68,68,.35)';btn.style.cursor=ok?'pointer':'not-allowed';}
+  if(warn)warn.style.display=sel.size>0?'block':'none';
+}
+
+function selectAllReset(all){
+  const keys=['orders','transactions','clients','finance','reminders','wbalance'];
+  window._resetSelected=window._resetSelected||new Set();
+  keys.forEach(k=>{
+    if(all)window._resetSelected.add(k);else window._resetSelected.delete(k);
+    const chk=document.getElementById('chk_'+k);
+    const lbl=document.getElementById('lbl_rst_'+k);
+    if(all){
+      if(chk){chk.textContent='✓';chk.style.background='var(--red)';chk.style.borderColor='var(--red)';chk.style.color='white';}
+      if(lbl){lbl.style.borderColor='rgba(239,68,68,.6)';lbl.style.background='rgba(239,68,68,.06)';}
+    } else {
+      if(chk){chk.textContent='';chk.style.background='transparent';chk.style.borderColor='var(--border)';chk.style.color='';}
+      if(lbl){lbl.style.borderColor='var(--border)';lbl.style.background='var(--card2)';}
     }
-  },100);
+  });
+  const btn=document.getElementById('btnDoReset');
+  const warn=document.getElementById('resetWarning');
+  if(btn){btn.disabled=!all;btn.style.background=all?'var(--red)':'rgba(239,68,68,.35)';btn.style.cursor=all?'pointer':'not-allowed';}
+  if(warn)warn.style.display=all?'block':'none';
 }
 
 function doFullReset(){
-  // Barcha kalitlarni o'chirish
-  const keys=['orders','transactions','finance','clients','reminders','chats'];
-  keys.forEach(k=>localStorage.removeItem('tvcrm_'+k));
-
-  // Balansni 0 ga tushirish
-  DB.setObj('finance',{balance:0,totalIncome:0,totalExpense:0,initBalance:0});
-  DB.set('transactions',[]);
-  DB.set('orders',[]);
-  DB.set('clients',[]);
-  DB.set('reminders',[]);
-
-  // Ishchilar balansini 0 ga tushirish (ro'yxat saqlanadi)
-  const users=DB.get('users');
-  users.forEach(u=>{
-    u.balance=0;
-    u.notifications=[];
-    u.debt=0;
-  });
-  DB.set('users',users);
-
-  // Buyurtma raqamlash tozalash
-  const settings=DB.getObj('settings');
-  settings.orderCounter=0;
-  DB.setObj('settings',settings);
-
+  const sel=window._resetSelected||new Set();
+  if(!sel.size)return;
+  const msgs=[];
+  if(sel.has('orders')){
+    DB.set('orders',[]);
+    const s=DB.getObj('settings');s.orderCounter=0;DB.setObj('settings',s);
+    msgs.push('📋 Buyurtmalar');
+  }
+  if(sel.has('transactions')){DB.set('transactions',[]);msgs.push('💸 Tranzaksiyalar');}
+  if(sel.has('clients')){DB.set('clients',[]);msgs.push('👥 Mijozlar');}
+  if(sel.has('finance')){
+    DB.setObj('finance',{balance:0,totalIncome:0,totalExpense:0,initBalance:0});
+    msgs.push('💰 Balans');
+  }
+  if(sel.has('reminders')){DB.set('reminders',[]);msgs.push('🔔 Eslatmalar');}
+  if(sel.has('wbalance')){
+    const users=DB.get('users');
+    users.forEach(u=>{u.balance=0;u.notifications=[];u.debt=0;});
+    DB.set('users',users);
+    msgs.push('👨‍🔧 Ishchilar balansi');
+  }
   closeModal('modalFullReset');
-  toast('🔄 Tizim to\'liq tozalandi! Yangi boshlash tayyor.','success');
-  setTimeout(()=>refreshAll(),300);
+  toast('✅ Tozalandi: '+msgs.join(', '),'success');
+  window._resetSelected=new Set();
+  setTimeout(()=>refreshAll(),200);
 }
 
 function resetAll(){
