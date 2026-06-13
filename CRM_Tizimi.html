@@ -3318,34 +3318,64 @@ function openOylikModal(){
         <div class="empty-title">Faol ishchilar yo'q</div></div>`:`
 
       <!-- Ishchilar balansi -->
+      <!-- Tez belgilash -->
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button onclick="oylikSelectAll(true)"
+          style="flex:1;padding:7px;border-radius:8px;border:1.5px solid rgba(16,185,129,.4);
+          background:rgba(16,185,129,.08);color:var(--green);font-size:12.5px;font-weight:700;cursor:pointer">
+          ☑️ Hammasini tanlash
+        </button>
+        <button onclick="oylikSelectAll(false)"
+          style="flex:1;padding:7px;border-radius:8px;border:1.5px solid var(--border);
+          background:transparent;color:var(--text2);font-size:12.5px;font-weight:700;cursor:pointer">
+          ☐ Hammasini olib tashlash
+        </button>
+      </div>
+
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
         ${workers.map(w=>{
           const {earned, taken, fik} = calcWorkerFIK(w);
-          const fikColor = fik===null?'var(--text2)':fik>=100?'var(--green)':fik>=70?'var(--yellow)':'var(--red)';
-          const fikLabel = fik===null?'— (hali oylik olmagan)'
-            :fik>=100?`✅ ${fik.toFixed(1)}% — Yuqori (${fmtMoney(earned)} topdi, ${fmtMoney(taken)} oldi)`
-            :`❌ ${fik.toFixed(1)}% — Past (${fmtMoney(earned)} topdi, ${fmtMoney(taken)} oldi)`;
+          const hasBalance = (w.balance||0)>0;
+          const fikColor = fik===null?'var(--text2)':fik>=100?'var(--green)':'var(--red)';
+          const fikLabel = fik===null?'—'
+            :fik>=100?`✅ ${fik.toFixed(1)}%`:`❌ ${fik.toFixed(1)}%`;
           return `
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;
-          padding:12px 14px;background:var(--card2);border-radius:10px;
-          border-left:3px solid ${(w.balance||0)>0?'var(--green)':'var(--border)'}">
-          <div style="flex:1">
-            <div style="font-weight:700;font-size:13px">${w.name}</div>
-            <div style="font-size:11px;color:var(--text2)">${w.role==='master'?'👷 Usta':'🖥 Operator'} · ${w.commission||0}% komisyon</div>
-            <div style="font-size:11px;margin-top:3px;color:${fikColor}">FIK: ${fikLabel}</div>
+        <div id="oylik_row_${w.id}" onclick="oylikToggle(${w.id})"
+          style="display:flex;align-items:center;gap:10px;padding:12px 14px;
+          background:var(--card2);border-radius:10px;cursor:pointer;
+          border:2px solid var(--border);transition:all .15s;user-select:none">
+
+          <!-- Checkbox -->
+          <div id="oylik_chkbox_${w.id}"
+            style="width:24px;height:24px;border-radius:7px;border:2px solid var(--border);
+            background:transparent;flex-shrink:0;display:flex;align-items:center;
+            justify-content:center;font-size:15px;font-weight:900;transition:all .15s">
           </div>
-          <div style="text-align:center;min-width:80px">
-            <div class="money ${(w.balance||0)>=0?'green-text':'red-text'}" style="font-weight:800;font-size:15px">
+
+          <!-- Info -->
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:13.5px">${w.name}</div>
+            <div style="font-size:11px;color:var(--text2)">
+              ${w.role==='master'?'👷 Usta':'🖥 Operator'}
+              · ${w.commission||0}% · FIK: <span style="color:${fikColor}">${fikLabel}</span>
+            </div>
+          </div>
+
+          <!-- Balans -->
+          <div style="text-align:center;min-width:90px">
+            <div class="money ${hasBalance?'green-text':'text-muted'}" style="font-weight:800;font-size:14px">
               ${fmtMoney(w.balance||0)}</div>
             <div style="font-size:10px;color:var(--text2)">Balansda</div>
-            <div style="font-size:10px;color:var(--text2)">Topgan: ${fmtMoney(earned)}</div>
           </div>
-          <div>
+
+          <!-- Summa input -->
+          <div onclick="event.stopPropagation()">
             <input type="number" id="oylik_${w.id}" placeholder="0" min="0"
-              value="${(w.balance||0)>0?Math.floor(w.balance||0):''}"
-              style="width:120px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;
-              background:var(--card);color:var(--text);font-size:14px;font-weight:700;
-              outline:none;font-family:monospace;text-align:right">
+              value="${hasBalance?Math.floor(w.balance||0):''}"
+              disabled
+              style="width:110px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;
+              background:var(--card2);color:var(--text2);font-size:14px;font-weight:700;
+              outline:none;font-family:monospace;text-align:right;opacity:.4;cursor:not-allowed">
           </div>
         </div>`}).join('')}
       </div>
@@ -3375,6 +3405,47 @@ function openOylikModal(){
   `,'modal-lg');
 }
 
+function oylikToggle(id){
+  const chk=document.getElementById('oylik_chkbox_'+id);
+  const inp=document.getElementById('oylik_'+id);
+  const row=document.getElementById('oylik_row_'+id);
+  if(!chk||!inp||!row)return;
+  const isOn=chk.textContent==='✓';
+  if(isOn){
+    chk.textContent='';
+    chk.style.background='transparent';
+    chk.style.borderColor='var(--border)';
+    inp.disabled=true;
+    inp.style.opacity='.4';
+    inp.style.cursor='not-allowed';
+    inp.style.color='var(--text2)';
+    row.style.borderColor='var(--border)';
+    row.style.background='var(--card2)';
+  } else {
+    chk.textContent='✓';
+    chk.style.background='var(--green)';
+    chk.style.borderColor='var(--green)';
+    chk.style.color='white';
+    inp.disabled=false;
+    inp.style.opacity='1';
+    inp.style.cursor='text';
+    inp.style.color='var(--text)';
+    row.style.borderColor='rgba(16,185,129,.5)';
+    row.style.background='rgba(16,185,129,.04)';
+    inp.focus();
+  }
+}
+
+function oylikSelectAll(on){
+  const workers=DB.get('users').filter(u=>u.role!=='admin'&&!u.fired&&u.active);
+  workers.forEach(w=>{
+    const chk=document.getElementById('oylik_chkbox_'+w.id);
+    const isOn=chk&&chk.textContent==='✓';
+    if(on&&!isOn)oylikToggle(w.id);
+    if(!on&&isOn)oylikToggle(w.id);
+  });
+}
+
 function saveOylik(){
   const workers=DB.get('users').filter(u=>u.role!=='admin'&&!u.fired&&u.active);
   const method=document.getElementById('oylikMethod').value;
@@ -3384,6 +3455,8 @@ function saveOylik(){
   let tolananlar=[];
 
   workers.forEach(w=>{
+    const chk=document.getElementById('oylik_chkbox_'+w.id);
+    if(!chk||chk.textContent!=='✓')return; // belgilanmagan — o'tkazib yuboramiz
     const sum=parseFloat(document.getElementById('oylik_'+w.id)?.value)||0;
     if(sum<=0)return;
 
