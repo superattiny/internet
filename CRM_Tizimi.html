@@ -2692,10 +2692,27 @@ function renderFinance(){
           ${(()=>{const freeIncome=trsP.filter(t=>t.type==='income'&&!t.orderId);
             return ordersP.length===0&&freeIncome.length===0?
             `<div style="padding:20px;text-align:center;color:var(--text2)">Bu davrda kirim yo'q</div>`:
-            [...ordersP.map(o=>({date:o.updatedAt||from,label:'💰 Buyurtma: '+o.num,
-              sub:o.clientName,amount:o.finalPrice||0,orderId:o.id})),
-             ...freeIncome.map(t=>({date:t.date,label:t.desc,
-               sub:t.by||'',amount:t.amount,orderId:null}))]
+            [...ordersP.map(o=>{
+              const oE=trsP.filter(t=>t.orderId==o.id&&t.type==='expense').reduce((s,t)=>s+t.amount,0);
+              const oProfit=Math.max(0,(o.finalPrice||0)-oE);
+              const mst=DB.get('users').find(u=>u.id===o.masterId);
+              const wShare=o.workerShare!==undefined?o.workerShare:oProfit*((mst?.commission||0)/100);
+              const cShare=oProfit-wShare;
+              return {
+                date:o.updatedAt||from,
+                label:`💰 ${o.num} — ${o.clientName}`,
+                sub:(mst?`👨‍🔧 ${mst.name} (${mst.commission||0}%)`:'')
+                   +(oE>0?` | 💸 chiqim: −${fmtMoney(oE)}`:'')
+                   +` | 📈 foyda: ${fmtMoney(oProfit)}`
+                   +(mst?` | ishchi: ${fmtMoney(wShare)} | kompaniya: ${fmtMoney(cShare)}`:''),
+                amount:o.finalPrice||0,
+                orderId:o.id
+              };
+            }),
+             ...freeIncome.map(t=>({date:t.date,
+               label:t.turi==='qarz_qaytarish'?`💸 Qarz qaytarildi — ${t.desc.replace('💸 Qarz qaytarildi: ','')}`:t.desc,
+               sub:t.turi==='qarz_qaytarish'?'Ishchi qarzi qaytdi → balansga':(t.by||''),
+               amount:t.amount,orderId:null}))]
             .sort((a,b)=>b.date.localeCompare(a.date))
             .map(item=>`<div
               onclick="${item.orderId?`openTransDetail(${item.orderId},'kirim')`:''}"
@@ -3331,13 +3348,10 @@ function saveOylik(){
   workers.forEach(w=>{
     const sum=parseFloat(document.getElementById('oylik_'+w.id)?.value)||0;
     if(sum<=0)return;
-    const earned=w.totalEarned||0;
-    const prevPaid=w.totalPaid||0;
-    const newTotal=prevPaid+sum;
     // Balansdan ayirish (manfiy bo'lishi mumkin — kompaniya qopladi)
     w.balance=(w.balance||0)-sum;
-    w.totalPaid=(w.totalPaid||0)+sum;
-    // Agar balans manfiy bo'lsa — kompaniya qopladi, belgilab qo'yamiz
+    // Period reset — yangi davr boshlanadi
+    w.periodStart=today();
     if(w.balance<0){w.companySubsidy=(w.companySubsidy||0)+Math.abs(w.balance);}
     fin.balance=(fin.balance||0)-sum;
     fin.totalExpense=(fin.totalExpense||0)+sum;
@@ -3358,7 +3372,11 @@ function saveOylik(){
   DB.set('transactions',tr);
 
   closeModal('modalOylik');
-  toast(`✅ Oylik to'landi: ${fmtMoney(totalTolandi)} (${tolananlar.length} ishchi)`);
+  // FIK xulosasini ko'rsatish
+  const fikInfo = workers.filter(w=>parseFloat(document.getElementById('oylik_'+w.id)?.value)>0)
+    .map(w=>{const {fik}=calcWorkerFIK(w);return fik!==null?`${w.name}: ${fik.toFixed(1)}%`:'';})
+    .filter(Boolean).join(' | ');
+  toast(`✅ Oylik to'landi: ${fmtMoney(totalTolandi)}${fikInfo?' (FIK: '+fikInfo+')':''}`);
   updateTopbarBalance();
   if(currentPage==='finance')renderFinance();
   if(currentPage==='workers')renderWorkers();
@@ -3571,6 +3589,45 @@ function renderWorkers(){
       <button class="btn btn-purple" onclick="openNewWorkerModal()">＋ Yangi Ishchi</button>
     </div>
 
+    <!-- QARZ OLGAN ISHCHILAR (manfiy balans) -->
+    ${(()=>{
+      const qarzdorlar = activeWorkers.filter(w=>(w.balance||0)<0);
+      if(!qarzdorlar.length) return '';
+      return `<div style="background:rgba(239,68,68,.08);border:2px solid rgba(239,68,68,.4);
+        border-radius:14px;padding:16px 18px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="font-size:13px;font-weight:800;color:var(--red)">
+            ⚠️ QARZ OLGAN ISHCHILAR — ${qarzdorlar.length} ta
+          </div>
+          <div style="font-size:12px;color:var(--text2)">Oyligidan ko'p olganlar</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${qarzdorlar.map(w=>`
+          <div style="display:flex;align-items:center;justify-content:space-between;
+            padding:10px 14px;background:var(--card2);border-radius:10px;
+            border-left:3px solid var(--red)">
+            <div>
+              <div style="font-weight:700;font-size:13px">${w.name}</div>
+              <div style="font-size:11px;color:var(--text2)">
+                ${w.role==='master'?'👷 Usta':'🖥 Operator'}
+              </div>
+            </div>
+            <div style="text-align:center">
+              <div class="money red-text" style="font-weight:900;font-size:16px">
+                ${fmtMoney(w.balance||0)}
+              </div>
+              <div style="font-size:10px;color:var(--text2)">Qarz (manfiy balans)</div>
+            </div>
+            <button onclick="openQarzQaytarishModal(${w.id})"
+              style="background:var(--red);color:white;border:none;border-radius:9px;
+              padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">
+              💸 Qarz qaytarish
+            </button>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    })()}
+
     <!-- JADVAL — faqat faol ishchilar -->
     <div class="card">
       <div class="card-header" style="padding-bottom:12px">
@@ -3581,6 +3638,78 @@ function renderWorkers(){
         ${buildWorkersTable(activeWorkers)}
       </div>
     </div>`;
+}
+
+// ================================================================
+//  QARZ QAYTARISH
+// ================================================================
+function openQarzQaytarishModal(workerId){
+  const w=DB.get('users').find(u=>u.id==workerId);
+  if(!w)return;
+  const debt=Math.abs(Math.min(0,w.balance||0));
+  openModal('modalQarzQaytarish',`
+    <div class="modal-header">
+      <div class="modal-title">💸 Qarz qaytarish — ${w.name}</div>
+      <button class="modal-close" onclick="closeModal('modalQarzQaytarish')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:rgba(239,68,68,.1);border:1.5px solid rgba(239,68,68,.4);
+        border-radius:10px;padding:14px;text-align:center;margin-bottom:16px">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px">Qarzi</div>
+        <div class="money red-text" style="font-size:26px;font-weight:900">${fmtMoney(debt)}</div>
+      </div>
+      <div class="form-group">
+        <label style="font-weight:700">Qaytariladigan summa <span style="color:var(--red)">*</span></label>
+        <input type="number" id="qarzReturnSum" value="${debt}" min="0"
+          style="width:100%;padding:12px;border:2px solid rgba(16,185,129,.5);border-radius:8px;
+          background:var(--card2);color:var(--green);font-size:22px;font-weight:900;
+          outline:none;font-family:monospace;text-align:center">
+      </div>
+      <div style="padding:10px 14px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);
+        border-radius:8px;font-size:12.5px;color:var(--green)">
+        ✅ Qaytarilgan pul <b>umumiy balansga</b> qo'shiladi
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalQarzQaytarish')">Bekor</button>
+      <button class="btn btn-success" onclick="saveQarzQaytarish(${w.id})">✅ Qaytarish</button>
+    </div>
+  `,'modal-sm');
+}
+
+function saveQarzQaytarish(workerId){
+  const amount=parseFloat(document.getElementById('qarzReturnSum')?.value)||0;
+  if(amount<=0){toast('Summa kiriting!','error');return;}
+  const users=DB.get('users');
+  const w=users.find(u=>u.id==workerId);
+  if(!w)return;
+
+  // Ishchi qarzini kamaytirish
+  w.balance=(w.balance||0)+amount;
+  w.notifications=w.notifications||[];
+  w.notifications.push({
+    id:nextId(w.notifications),
+    text:`💸 Qarz qaytarildi: ${fmtMoney(amount)}. Yangi balans: ${fmtMoney(w.balance)}`,
+    date:now(),read:false
+  });
+  DB.set('users',users);
+
+  // Umumiy balansga qaytarish
+  const fin=DB.getObj('finance');
+  fin.balance=(fin.balance||0)+amount;
+  fin.totalIncome=(fin.totalIncome||0)+amount;
+  DB.setObj('finance',fin);
+
+  // Tranzaksiya
+  const tr=DB.get('transactions');
+  tr.push({id:nextId(tr),type:'income',amount,
+    desc:`💸 Qarz qaytarildi: ${w.name}`,
+    turi:'qarz_qaytarish',workerId:workerId,date:today(),by:currentUser.name});
+  DB.set('transactions',tr);
+
+  closeModal('modalQarzQaytarish');
+  toast(`✅ ${w.name} qarz qaytardi: ${fmtMoney(amount)}. Balans: ${fmtMoney(w.balance)}`);
+  refreshAll();
 }
 
 function buildChiqimlarTab(){
