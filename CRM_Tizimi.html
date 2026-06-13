@@ -3090,7 +3090,7 @@ function openAddIncome(){
 }
 
 function openAddExpense(){
-  const orders=DB.get('orders').filter(o=>!['delivered','cancelled'].includes(o.status));
+  const orders=DB.get('orders').filter(o=>o.status!=='cancelled');
   openModal('modalExpense',`
     <div class="modal-header">
       <div class="modal-title">📉 Chiqim qo'shish</div>
