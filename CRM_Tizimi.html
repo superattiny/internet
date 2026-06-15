@@ -307,6 +307,19 @@ tbody tr:last-child td{border-bottom:none}
 
   /* Dashboard: ikki ustunli grid 1 ga tushadi */
   .dash-two-col{display:flex !important;flex-direction:column !important}
+
+  /* Finance 4-ustun -> 2 ustun */
+  .finance-4col{grid-template-columns:1fr 1fr !important}
+
+  /* Finance kirim/chiqim 2-ustun -> 1 ustun */
+  .finance-2col{grid-template-columns:1fr !important}
+
+  /* Workers jadval amallar ustuni kichik */
+  .td-actions{flex-wrap:wrap;gap:4px}
+  .td-actions .btn-sm{padding:4px 8px;font-size:11px}
+
+  /* Login sahifa */
+  .login-box{padding:32px 20px;margin:16px}
 }
 
 /* ── KICHIK TELEFON: < 480px ────────────────────── */
@@ -332,11 +345,11 @@ tbody tr:last-child td{border-bottom:none}
       border-radius:10px;padding:10px 14px;font-size:13px;color:#fca5a5;margin-bottom:14px"></div>
     <div class="form-group">
       <label>Foydalanuvchi nomi</label>
-      <input type="text" id="loginUsername" placeholder="admin" value="admin">
+      <input type="text" id="loginUsername" placeholder="admin">
     </div>
     <div class="form-group">
       <label>Parol</label>
-      <input type="password" id="loginPassword" placeholder="••••••" value="admin123"
+      <input type="password" id="loginPassword" placeholder="••••••"
         onkeydown="if(event.key==='Enter')doLogin()">
     </div>
     <button class="btn btn-primary" onclick="doLogin()" style="margin-top:8px">Kirish →</button>
@@ -1521,7 +1534,7 @@ function doLogin(){
     return;
   }
   currentUser=user;
-  sessionStorage.setItem('tvcrm_user',JSON.stringify(user));
+  sessionStorage.setItem('tvcrm_user',JSON.stringify({id:user.id})); // faqat ID saqlash
   document.getElementById('loginPage').style.display='none';
   document.getElementById('app').style.display='flex';
   document.getElementById('sidebarName').textContent=user.name;
@@ -1553,18 +1566,26 @@ function doLogout(){
 
 function checkSession(){
   const s=sessionStorage.getItem('tvcrm_user');
-  if(s){
-    try {
-      const u = JSON.parse(s);
-      // DB dan yangi ma'lumotlarni olamiz (parol o'zgargan bo'lishi mumkin)
-      const fresh = DB.get('users').find(x=>x.id===u.id&&x.active&&!x.fired);
-      if(fresh){
-        document.getElementById('loginUsername').value = fresh.username;
-        document.getElementById('loginPassword').value = fresh.password;
-        doLogin();
-      }
-    } catch(e){}
-  }
+  if(!s) return;
+  try {
+    const saved = JSON.parse(s);
+    // DB dan yangi ma'lumotlarni olamiz
+    const fresh = DB.get('users').find(x=>x.id===saved.id && x.active && !x.fired);
+    if(!fresh) return;
+    // To'g'ridan-to'g'ri tizimga kiramiz (parol inputga qo'ymasdan)
+    currentUser = fresh;
+    const roleLabel={admin:'👑 Admin', operator:'🖥 Operator', master:'👷 Usta'};
+    document.getElementById('loginPage').style.display='none';
+    document.getElementById('app').style.display='flex';
+    document.getElementById('sidebarName').textContent=fresh.name;
+    document.getElementById('sidebarAvatar').textContent=fresh.name[0];
+    const roleEl=document.getElementById('sidebarRole');
+    if(roleEl) roleEl.textContent=roleLabel[fresh.role]||fresh.role;
+    buildSidebar();
+    const firstPage = getUserPages(fresh)[0] || 'dashboard';
+    showPage(firstPage);
+    refreshAll();
+  } catch(e){ sessionStorage.removeItem('tvcrm_user'); }
 }
 
 // ── NAVIGATION ───────────────────────────────────────────────────
@@ -1625,21 +1646,25 @@ function refreshAll(){
 }
 function updateTopbarBalance(){
   const fin=DB.getObj('finance');
-  document.getElementById('topbarBalanceVal').textContent=fmtMoney(fin.balance||0);
+  const bal = fin.balance||0;
+  // Kompakt format: 1 500 000 so'm (tiyinsiz)
+  const el = document.getElementById('topbarBalanceVal');
+  if(el) el.textContent = Math.round(bal).toLocaleString('uz-UZ') + " so'm";
 }
+
 function updateOverdueAlert(){
   const orders=DB.get('orders').filter(o=>!['delivered','cancelled'].includes(o.status));
   const overdue=orders.filter(o=>o.deadline&&new Date(o.deadline)<new Date());
   const el=document.getElementById('overdueAlert');
-  const badge=document.getElementById('navOrderBadge');
+  const badge=document.getElementById('navOrderBadge');   // dinamik — null bo'lishi mumkin
+  const countEl=document.getElementById('overdueCount');
   if(overdue.length>0){
-    el.style.display='inline';
-    document.getElementById('overdueCount').textContent=overdue.length;
-    badge.style.display='inline';
-    badge.textContent=overdue.length;
+    if(el) el.style.display='inline';
+    if(countEl) countEl.textContent=overdue.length;
+    if(badge){ badge.style.display='inline'; badge.textContent=overdue.length; }
   } else {
-    el.style.display='none';
-    badge.style.display='none';
+    if(el) el.style.display='none';
+    if(badge) badge.style.display='none';
   }
   // Xabar tugmasini yangilash
   const qabul=DB.get('orders').filter(o=>o.qabulKutilmoqda&&!o.isPaid);
@@ -1649,8 +1674,6 @@ function updateOverdueAlert(){
     if(qabul.length>0){
       xabarBtn.style.display='block';
       xabarCnt.textContent=qabul.length;
-      // Titratish effekti
-      xabarBtn.style.animation='pulse-dot 1.5s ease infinite';
     } else {
       xabarBtn.style.display='none';
     }
@@ -3806,7 +3829,7 @@ function renderFinance(){
     </div>`}
 
     <!-- 4 TA KARTA: BALANS | KIRIM | CHIQIM | FOYDA -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
+    <div class="finance-4col" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
 
       <div style="background:rgba(16,185,129,.15);border:2px solid rgba(16,185,129,.6);
         border-radius:13px;padding:16px 14px;text-align:center">
@@ -3944,7 +3967,7 @@ function renderFinance(){
     })()}
 
     <!-- KIRIMLAR VA CHIQIMLAR -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
+    <div class="finance-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
 
       <div class="card">
         <div style="padding:12px 18px;border-bottom:1px solid var(--border);
