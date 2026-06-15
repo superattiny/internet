@@ -235,58 +235,15 @@ tbody tr:last-child td{border-bottom:none}
     <!-- KALENDAR -->
     <div id="sidebarCalendar" style="padding:10px 12px 0;border-bottom:1px solid var(--border)"></div>
 
-    <nav class="sidebar-nav">
-      <div class="nav-section">Asosiy</div>
-      <div class="nav-item active" onclick="showPage('dashboard')">
-        <span class="ni">🏠</span><span>Bosh Sahifa</span>
-      </div>
-      <div class="nav-item" onclick="showPage('orders')">
-        <span class="ni">📋</span><span>Buyurtmalar</span>
-        <span class="nav-badge" id="navOrderBadge" style="display:none">0</span>
-      </div>
-      <div class="nav-item" onclick="showPage('clients')">
-        <span class="ni">👥</span><span>Mijozlar</span>
-      </div>
-      <div class="nav-section">Ishchilar</div>
-      <div class="nav-item" onclick="showPage('workers')">
-        <span class="ni">👨‍🔧</span><span>Ishchilar</span>
-      </div>
-      <div class="nav-item" onclick="showPage('ustalar')">
-        <span class="ni">📋</span><span>Ustalar ro'yxati</span>
-      </div>
-      <div class="nav-section">Moliya</div>
-      <div class="nav-item" onclick="showPage('finance')">
-        <span class="ni">💰</span><span>Balans</span>
-      </div>
-      <div class="nav-section">Boshqa</div>
-      <div class="nav-item" onclick="showPage('bot')">
-        <span class="ni">🤖</span><span>Bot / Xabarlar</span>
-        <span class="nav-badge" id="navBotBadge" style="display:none">0</span>
-      </div>
-      <div class="nav-item" onclick="showPage('chats')">
-        <span class="ni">📞</span><span>Qo'ng'iroqlar</span>
-      </div>
-      <div class="nav-item" onclick="showPage('reminders')">
-        <span class="ni">🔔</span><span>Eslatmalar</span>
-      </div>
-      <div class="nav-item" onclick="showPage('archive')">
-        <span class="ni">📦</span><span>Arxiv</span>
-      </div>
-      <div class="nav-section">Admin</div>
-      <div class="nav-item" onclick="showPage('users')">
-        <span class="ni">⚙️</span><span>Foydalanuvchilar</span>
-      </div>
-      <div class="nav-item" onclick="openFullResetModal()"
-        style="color:#ef4444;border-color:rgba(239,68,68,.2);margin-top:4px">
-        <span class="ni">🔄</span><span>TO'LIQ RESET</span>
-      </div>
+    <nav class="sidebar-nav" id="sidebarNav">
+      <!-- Dinamik quriladi: buildSidebar() -->
     </nav>
     <div class="sidebar-user">
       <div class="user-box" onclick="doLogout()">
         <div class="user-avatar" id="sidebarAvatar">A</div>
         <div>
           <div class="user-name" id="sidebarName">Admin</div>
-          <div class="user-role">Chiqish uchun bosing</div>
+          <div class="user-role" id="sidebarRole">Chiqish uchun bosing</div>
         </div>
       </div>
     </div>
@@ -1332,7 +1289,96 @@ function toast(msg,type='success'){
   setTimeout(()=>t.remove(),3500);
 }
 
-// ---------- AUTH ----------
+// ================================================================
+//  ROL VA RUXSATLAR TIZIMI
+// ================================================================
+
+// Barcha sahifalar ro'yxati
+const ALL_PAGES = [
+  {key:'dashboard', label:'Bosh Sahifa',     icon:'🏠', section:'Asosiy'},
+  {key:'orders',    label:'Buyurtmalar',     icon:'📋', section:'Asosiy', badge:'navOrderBadge'},
+  {key:'clients',   label:'Mijozlar',        icon:'👥', section:'Asosiy'},
+  {key:'workers',   label:'Ishchilar',       icon:'👨‍🔧', section:'Ishchilar'},
+  {key:'ustalar',   label:"Ustalar ro'yxati",icon:'📋', section:'Ishchilar'},
+  {key:'finance',   label:'Balans',          icon:'💰', section:'Moliya'},
+  {key:'bot',       label:'Bot / Xabarlar', icon:'🤖', section:'Boshqa', badge:'navBotBadge'},
+  {key:'chats',     label:"Qo'ng'iroqlar",  icon:'📞', section:'Boshqa'},
+  {key:'reminders', label:'Eslatmalar',      icon:'🔔', section:'Boshqa'},
+  {key:'archive',   label:'Arxiv',           icon:'📦', section:'Boshqa'},
+  {key:'users',     label:'Foydalanuvchilar',icon:'⚙️', section:'Admin'},
+  {key:'reset',     label:"TO'LIQ RESET",   icon:'🔄', section:'Admin', special:'reset'},
+];
+
+// Rol bo'yicha standart ruxsatlar
+const ROLE_DEFAULT_PAGES = {
+  admin:    ['dashboard','orders','clients','workers','ustalar','finance','bot','chats','reminders','archive','users','reset'],
+  operator: ['dashboard','orders','clients','workers','ustalar','bot','chats','reminders','archive'],
+  master:   ['dashboard','orders','reminders']
+};
+
+// Foydalanuvchining ruxsat berilgan sahifalar ro'yxatini olish
+function getUserPages(user){
+  if(!user) return [];
+  // Custom pages belgilangan bo'lsa — shuni ishlat
+  if(user.customPages && Array.isArray(user.customPages))
+    return user.customPages;
+  // Aks holda rol bo'yicha standart
+  return ROLE_DEFAULT_PAGES[user.role] || ['dashboard'];
+}
+
+// Ruxsat bor-yo'qligini tekshirish
+function canAccess(page){
+  if(!currentUser) return false;
+  return getUserPages(currentUser).includes(page);
+}
+
+// ── Sidebar qurish ──────────────────────────────────────────────
+function buildSidebar(){
+  const nav = document.getElementById('sidebarNav');
+  if(!nav || !currentUser) return;
+
+  const allowed = getUserPages(currentUser);
+  let html = '';
+  let lastSection = '';
+
+  ALL_PAGES.forEach(p => {
+    if(!allowed.includes(p.key)) return;
+
+    // Section header
+    if(p.section !== lastSection){
+      html += `<div class="nav-section">${p.section}</div>`;
+      lastSection = p.section;
+    }
+
+    // Reset tugmasi alohida
+    if(p.special === 'reset'){
+      html += `<div class="nav-item" onclick="openFullResetModal()"
+        style="color:#ef4444;border-color:rgba(239,68,68,.2);margin-top:4px">
+        <span class="ni">${p.icon}</span><span>${p.label}</span>
+      </div>`;
+      return;
+    }
+
+    // Oddiy sahifa
+    html += `<div class="nav-item" id="nav_${p.key}" onclick="showPage('${p.key}')">
+      <span class="ni">${p.icon}</span><span>${p.label}</span>
+      ${p.badge ? `<span class="nav-badge" id="${p.badge}" style="display:none">0</span>` : ''}
+    </div>`;
+  });
+
+  nav.innerHTML = html;
+
+  // Joriy sahifani aktiv qilish
+  markNavActive(currentPage);
+}
+
+function markNavActive(name){
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById('nav_' + name);
+  if(el) el.classList.add('active');
+}
+
+// ── AUTH ─────────────────────────────────────────────────────────
 let currentUser=null;
 function doLogin(){
   const u=document.getElementById('loginUsername').value.trim();
@@ -1342,7 +1388,7 @@ function doLogin(){
   if(!user){
     const el=document.getElementById('loginError');
     el.style.display='block';
-    el.textContent='Username yoki parol noto\'g\'ri';
+    el.textContent="Username yoki parol noto'g'ri";
     return;
   }
   currentUser=user;
@@ -1351,10 +1397,22 @@ function doLogin(){
   document.getElementById('app').style.display='flex';
   document.getElementById('sidebarName').textContent=user.name;
   document.getElementById('sidebarAvatar').textContent=user.name[0];
-  showPage('dashboard');
+
+  // Rol ko'rsatish
+  const roleLabel={admin:'👑 Admin', operator:'🖥 Operator', master:'👷 Usta'};
+  const roleEl=document.getElementById('sidebarRole');
+  if(roleEl) roleEl.textContent=roleLabel[user.role]||user.role;
+
+  // Sidebar dinamik qurish
+  buildSidebar();
+
+  // Birinchi ruxsat etilgan sahifani ochish
+  const firstPage = getUserPages(user)[0] || 'dashboard';
+  showPage(firstPage);
   refreshAll();
   toast(`Xush kelibsiz, ${user.name}!`);
 }
+
 function doLogout(){
   if(!confirm('Tizimdan chiqmoqchimisiz?'))return;
   currentUser=null;
@@ -1363,12 +1421,24 @@ function doLogout(){
   document.getElementById('loginPage').style.display='flex';
   toast('Tizimdan chiqildi','info');
 }
+
 function checkSession(){
   const s=sessionStorage.getItem('tvcrm_user');
-  if(s){currentUser=JSON.parse(s);doLogin();}
+  if(s){
+    try {
+      const u = JSON.parse(s);
+      // DB dan yangi ma'lumotlarni olamiz (parol o'zgargan bo'lishi mumkin)
+      const fresh = DB.get('users').find(x=>x.id===u.id&&x.active&&!x.fired);
+      if(fresh){
+        document.getElementById('loginUsername').value = fresh.username;
+        document.getElementById('loginPassword').value = fresh.password;
+        doLogin();
+      }
+    } catch(e){}
+  }
 }
 
-// ---------- NAVIGATION ----------
+// ── NAVIGATION ───────────────────────────────────────────────────
 let currentPage='dashboard';
 const PAGE_TITLES={
   dashboard:{title:'Bosh Sahifa',icon:'🏠'},
@@ -1377,23 +1447,27 @@ const PAGE_TITLES={
   finance:{title:'Balans',icon:'💰'},
   workers:{title:'Ishchilar',icon:'👨‍🔧'},
   ustalar:{title:"Ustalar ro'yxati",icon:'👷'},
-  chats:{title:'Qo\'ng\'iroqlar',icon:'📞'},
+  chats:{title:"Qo'ng'iroqlar",icon:'📞'},
   bot:{title:'Bot / Xabarlar',icon:'🤖'},
   reminders:{title:'Eslatmalar',icon:'🔔'},
   archive:{title:'Arxiv',icon:'📦'},
   users:{title:'Foydalanuvchilar',icon:'⚙️'}
 };
+
 function showPage(name,extra){
-  document.querySelectorAll('#page-'+currentPage).forEach(el=>el.style.display='none');
-  currentPage=name;
+  // ── Ruxsat tekshirish ──
+  if(name !== 'dashboard' && currentUser && !canAccess(name)){
+    toast(`🔒 "${PAGE_TITLES[name]?.title||name}" bo'limiga kirishga ruxsat yo'q`, 'error');
+    return;
+  }
+
   document.querySelectorAll('[id^="page-"]').forEach(el=>el.style.display='none');
+  currentPage=name;
   const page=document.getElementById('page-'+name);
   if(page)page.style.display='block';
-  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(el=>{
-    if(el.getAttribute('onclick')&&el.getAttribute('onclick').includes(`'${name}'`))
-      el.classList.add('active');
-  });
+
+  markNavActive(name);
+
   const info=PAGE_TITLES[name]||{title:name,icon:'📄'};
   document.getElementById('topbarTitle').textContent=info.title;
   document.getElementById('topbarIcon').textContent=info.icon;
@@ -1629,7 +1703,13 @@ let orderSearch='';
 
 function renderOrders(extra){
   if(extra)orderFilter=extra;
-  const allOrders=DB.get('orders').filter(o=>!['delivered','cancelled'].includes(o.status));
+  // Master faqat o'ziga biriktirilgan buyurtmalarni ko'radi
+  const isMaster = currentUser?.role === 'master';
+  let allOrders=DB.get('orders').filter(o=>!['delivered','cancelled'].includes(o.status));
+  if(isMaster) allOrders = allOrders.filter(o=>
+    o.masterId===currentUser.id ||
+    (o.masterIds&&o.masterIds.includes(currentUser.id))
+  );
 
   document.getElementById('page-orders').innerHTML=`
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
@@ -1663,8 +1743,15 @@ function renderOrders(extra){
 }
 
 function renderOrdersTable(){
+  const isMaster = currentUser?.role === 'master';
   let orders=DB.get('orders');
   const now=new Date();
+
+  // Master faqat o'zini ko'radi
+  if(isMaster) orders = orders.filter(o=>
+    o.masterId===currentUser.id ||
+    (o.masterIds&&o.masterIds.includes(currentUser.id))
+  );
 
   if(orderFilter==='overdue'){
     orders=orders.filter(o=>!['delivered','cancelled'].includes(o.status)&&o.deadline&&new Date(o.deadline)<now);
@@ -6281,39 +6368,175 @@ function renderArchive(){
 }
 
 // ================================================================
-//  FOYDALANUVCHILAR SAHIFASI
+//  FOYDALANUVCHILAR SAHIFASI — Permission boshqaruvi bilan
 // ================================================================
 function renderUsers(){
-  // Bo'shatilganlar ko'rinmasin — ular arxivda
   const users=DB.get('users').filter(u=>!u.fired);
   document.getElementById('page-users').innerHTML=`
-    <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+      <div>
+        <div style="font-size:16px;font-weight:800">⚙️ Foydalanuvchilar va ruxsatlar</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:3px">
+          Har bir foydalanuvchi uchun sahifalarni yoqing yoki o'chiring
+        </div>
+      </div>
       <button class="btn btn-purple" onclick="openNewWorkerModal()">＋ Yangi Foydalanuvchi</button>
     </div>
-    <div class="card">
-      <div class="card-header" style="padding-bottom:12px">
-        <div class="card-title">⚙️ Foydalanuvchilar</div>
-      </div>
-      <div class="table-wrap" style="border:none;border-radius:0">
-      <table><thead><tr>
-        <th>Foydalanuvchi</th><th>Login</th><th>Rol</th><th>Telefon</th><th>Holat</th><th>Amallar</th>
-      </tr></thead><tbody>
-      ${users.map(u=>`<tr>
-        <td><div style="font-weight:600">${u.name}</div></td>
-        <td style="font-family:monospace;color:var(--text2)">@${u.username}</td>
-        <td><span class="badge ${u.role==='admin'?'b-admin':u.role==='master'?'b-master':'b-operator'}">
-          ${u.role==='admin'?'👑 Admin':u.role==='master'?'👷 Usta':'🖥 Operator'}</span></td>
-        <td style="font-size:13px">${u.phone||'—'}</td>
-        <td><span class="badge ${u.active?'b-done':'b-cancelled'}">${u.active?'✅ Faol':'🔒 Block'}</span></td>
-        <td><div class="td-actions">
-          <button class="btn btn-sm btn-ghost" onclick="editWorker(${u.id})">✏️</button>
-          ${u.id!==currentUser.id?`<button class="btn btn-sm ${u.active?'btn-danger':'btn-success'}" 
-            onclick="toggleWorker(${u.id})">${u.active?'🔒':'🔓'}</button>`:''}
-        </div></td>
-      </tr>`).join('')}
-      </tbody></table>
-      </div>
-    </div>`;
+
+    ${users.map(u=>{
+      const allowed = getUserPages(u);
+      const isDefault = !u.customPages;
+      const roleColor = u.role==='admin'?'var(--purple2)':u.role==='master'?'var(--yellow)':'var(--blue)';
+      const roleLabel = u.role==='admin'?'👑 Admin':u.role==='master'?'👷 Usta':'🖥 Operator';
+      return `
+      <div class="card" style="margin-bottom:14px">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+
+            <!-- User info -->
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="width:42px;height:42px;border-radius:50%;flex-shrink:0;
+                background:linear-gradient(135deg,var(--purple),var(--purple2));
+                display:flex;align-items:center;justify-content:center;
+                font-size:17px;font-weight:700;color:white">${u.name[0]}</div>
+              <div>
+                <div style="font-weight:700;font-size:15px">${u.name}</div>
+                <div style="font-size:12px;color:var(--text2)">
+                  @${u.username} ·
+                  <span style="color:${roleColor};font-weight:700">${roleLabel}</span>
+                  ${u.phone?` · ${u.phone}`:''}
+                </div>
+              </div>
+            </div>
+
+            <!-- Tugmalar -->
+            <div style="display:flex;gap:8px;align-items:center">
+              <span class="badge ${u.active?'b-done':'b-cancelled'}">${u.active?'✅ Faol':'🔒 Bloklangan'}</span>
+              ${isDefault?`
+              <span style="font-size:11px;background:rgba(59,130,246,.1);
+                border:1px solid rgba(59,130,246,.3);color:var(--blue);
+                padding:3px 9px;border-radius:8px;font-weight:600">
+                Standart (${u.role})
+              </span>`:`
+              <span style="font-size:11px;background:rgba(245,158,11,.1);
+                border:1px solid rgba(245,158,11,.3);color:var(--yellow);
+                padding:3px 9px;border-radius:8px;font-weight:600">
+                ✏️ Maxsus
+              </span>`}
+              <button onclick="editWorker(${u.id})" class="btn btn-sm btn-ghost">✏️ Tahrirlash</button>
+              ${u.id!==currentUser.id?`
+              <button onclick="toggleWorker(${u.id})" class="btn btn-sm ${u.active?'btn-danger':'btn-success'}">
+                ${u.active?'🔒 Blok':'🔓 Aktiv'}
+              </button>`:''}
+            </div>
+          </div>
+        </div>
+
+        <!-- Permission toggles -->
+        <div style="padding:14px 20px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;
+              letter-spacing:.06em;color:var(--text2)">
+              📂 Sahifalar ruxsati
+            </div>
+            ${!isDefault?`
+            <button onclick="resetUserPages(${u.id})"
+              style="font-size:11px;padding:4px 10px;border-radius:7px;
+              border:1px solid var(--border);background:transparent;
+              color:var(--text2);cursor:pointer"
+              onmouseover="this.style.color='var(--red)'"
+              onmouseout="this.style.color='var(--text2)'">
+              ↩️ Standartga qaytarish
+            </button>`:''}
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">
+            ${ALL_PAGES.map(p=>{
+              const isOn = allowed.includes(p.key);
+              const isForced = p.key==='dashboard'; // Dashboard har doim bor
+              return `
+              <div onclick="${isForced?'':`toggleUserPage(${u.id},'${p.key}')`}"
+                id="perm_${u.id}_${p.key}"
+                style="display:flex;align-items:center;gap:8px;padding:8px 11px;
+                border-radius:9px;cursor:${isForced?'default':'pointer'};
+                border:1.5px solid ${isOn?'rgba(16,185,129,.4)':'var(--border)'};
+                background:${isOn?'rgba(16,185,129,.06)':'var(--card2)'};
+                transition:all .15s;user-select:none;
+                opacity:${isForced?'.6':'1'}">
+                <div style="width:18px;height:18px;border-radius:5px;flex-shrink:0;
+                  background:${isOn?'var(--green)':'var(--border)'};
+                  display:flex;align-items:center;justify-content:center;
+                  font-size:11px;font-weight:900;color:white;transition:all .15s">
+                  ${isOn?'✓':''}
+                </div>
+                <div>
+                  <div style="font-size:11.5px;font-weight:600;
+                    color:${isOn?'var(--text)':'var(--text2)'}">${p.icon} ${p.label}</div>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+      </div>`;
+    }).join('')}`;
+}
+
+function toggleUserPage(userId, pageKey){
+  const users = DB.get('users');
+  const u = users.find(x=>x.id===userId);
+  if(!u) return;
+
+  // customPages yo'q bo'lsa — standartdan nusxa olish
+  if(!u.customPages){
+    u.customPages = [...(ROLE_DEFAULT_PAGES[u.role]||[])];
+  }
+
+  const idx = u.customPages.indexOf(pageKey);
+  if(idx === -1){
+    u.customPages.push(pageKey);
+  } else {
+    if(pageKey === 'dashboard'){ toast("Bosh sahifani o'chirib bo'lmaydi",'info'); return; }
+    u.customPages.splice(idx,1);
+  }
+  DB.set('users', users);
+
+  // Agar hozirgi foydalanuvchi o'zi bo'lsa — sessiyani yangilash
+  if(u.id === currentUser.id){
+    currentUser = u;
+    sessionStorage.setItem('tvcrm_user', JSON.stringify(u));
+    buildSidebar();
+  }
+
+  // UI ni yangilash
+  const isOn = u.customPages.includes(pageKey);
+  const el = document.getElementById(`perm_${userId}_${pageKey}`);
+  if(el){
+    el.style.borderColor = isOn?'rgba(16,185,129,.4)':'var(--border)';
+    el.style.background = isOn?'rgba(16,185,129,.06)':'var(--card2)';
+    const chk = el.querySelector('div');
+    if(chk){ chk.style.background = isOn?'var(--green)':'var(--border)'; chk.textContent = isOn?'✓':''; }
+    const lbl = el.querySelector('div:last-child div');
+    if(lbl) lbl.style.color = isOn?'var(--text)':'var(--text2)';
+  }
+
+  const pageName = ALL_PAGES.find(p=>p.key===pageKey)?.label || pageKey;
+  toast(`${isOn?'✅ Yoqildi':'🔒 O\'chirildi'}: ${u.name} → ${pageName}`, isOn?'success':'info');
+}
+
+function resetUserPages(userId){
+  if(!confirm("Standart ruxsatlarga qaytarilsinmi?")) return;
+  const users = DB.get('users');
+  const u = users.find(x=>x.id===userId);
+  if(!u) return;
+  delete u.customPages;
+  DB.set('users', users);
+  if(u.id === currentUser.id){
+    currentUser = u;
+    sessionStorage.setItem('tvcrm_user', JSON.stringify(u));
+    buildSidebar();
+  }
+  toast(`↩️ ${u.name} standart ruxsatlarga qaytarildi`,'info');
+  renderUsers();
 }
 
 // ================================================================
