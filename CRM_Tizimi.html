@@ -374,7 +374,53 @@ tbody tr:last-child td{border-bottom:none}
     <div id="sidebarCalendar" style="padding:10px 12px 0;border-bottom:1px solid var(--border)"></div>
 
     <nav class="sidebar-nav" id="sidebarNav">
-      <!-- Dinamik quriladi: buildSidebar() -->
+      <div class="nav-section">Asosiy</div>
+      <div class="nav-item active" id="nav_dashboard" onclick="showPage('dashboard')">
+        <span class="ni">🏠</span><span>Bosh Sahifa</span>
+      </div>
+      <div class="nav-item" id="nav_orders" onclick="showPage('orders')">
+        <span class="ni">📋</span><span>Buyurtmalar</span>
+        <span class="nav-badge" id="navOrderBadge" style="display:none">0</span>
+      </div>
+      <div class="nav-item" id="nav_clients" onclick="showPage('clients')">
+        <span class="ni">👥</span><span>Mijozlar</span>
+      </div>
+      <div class="nav-section">Ishchilar</div>
+      <div class="nav-item" id="nav_workers" onclick="showPage('workers')">
+        <span class="ni">👨‍🔧</span><span>Ishchilar</span>
+      </div>
+      <div class="nav-item" id="nav_ustalar" onclick="showPage('ustalar')">
+        <span class="ni">📋</span><span>Ustalar ro'yxati</span>
+      </div>
+      <div class="nav-section">Moliya</div>
+      <div class="nav-item" id="nav_finance" onclick="showPage('finance')">
+        <span class="ni">💰</span><span>Balans</span>
+      </div>
+      <div class="nav-section">Boshqa</div>
+      <div class="nav-item" id="nav_bot" onclick="showPage('bot')">
+        <span class="ni">🤖</span><span>Bot / Xabarlar</span>
+        <span class="nav-badge" id="navBotBadge" style="display:none">0</span>
+      </div>
+      <div class="nav-item" id="nav_chats" onclick="showPage('chats')">
+        <span class="ni">📞</span><span>Qo'ng'iroqlar</span>
+      </div>
+      <div class="nav-item" id="nav_reminders" onclick="showPage('reminders')">
+        <span class="ni">🔔</span><span>Eslatmalar</span>
+      </div>
+      <div class="nav-item" id="nav_archive" onclick="showPage('archive')">
+        <span class="ni">📦</span><span>Arxiv</span>
+      </div>
+      <div class="nav-section admin-only">Admin</div>
+      <div class="nav-item admin-only" id="nav_users" onclick="showPage('users')">
+        <span class="ni">⚙️</span><span>Foydalanuvchilar</span>
+      </div>
+      <div class="nav-item admin-only" id="nav_settings" onclick="showPage('settings')">
+        <span class="ni">🛠️</span><span>Sozlamalar</span>
+      </div>
+      <div class="nav-item admin-only" id="nav_reset" onclick="openFullResetModal()"
+        style="color:#ef4444;border-color:rgba(239,68,68,.2);margin-top:4px">
+        <span class="ni">🔄</span><span>TO'LIQ RESET</span>
+      </div>
     </nav>
     <div class="sidebar-user">
       <div class="user-box" onclick="doLogout()">
@@ -1476,43 +1522,20 @@ function canAccess(page){
   return getUserPages(currentUser).includes(page);
 }
 
-// ── Sidebar qurish ──────────────────────────────────────────────
+// ── Sidebar ko'rinishini rol asosida boshqarish ─────────────────
 function buildSidebar(){
-  const nav = document.getElementById('sidebarNav');
-  if(!nav || !currentUser) return;
-
+  if(!currentUser) return;
   const allowed = getUserPages(currentUser);
-  let html = '';
-  let lastSection = '';
-
+  // Har bir nav itemni allowed ro'yxatiga qarab ko'rsat/yashir
   ALL_PAGES.forEach(p => {
-    if(!allowed.includes(p.key)) return;
-
-    // Section header
-    if(p.section !== lastSection){
-      html += `<div class="nav-section">${p.section}</div>`;
-      lastSection = p.section;
-    }
-
-    // Reset tugmasi alohida
-    if(p.special === 'reset'){
-      html += `<div class="nav-item" onclick="openFullResetModal()"
-        style="color:#ef4444;border-color:rgba(239,68,68,.2);margin-top:4px">
-        <span class="ni">${p.icon}</span><span>${p.label}</span>
-      </div>`;
-      return;
-    }
-
-    // Oddiy sahifa
-    html += `<div class="nav-item" id="nav_${p.key}" onclick="showPage('${p.key}')">
-      <span class="ni">${p.icon}</span><span>${p.label}</span>
-      ${p.badge ? `<span class="nav-badge" id="${p.badge}" style="display:none">0</span>` : ''}
-    </div>`;
+    const el = document.getElementById('nav_' + p.key);
+    if(el) el.style.display = allowed.includes(p.key) ? '' : 'none';
   });
-
-  nav.innerHTML = html;
-
-  // Joriy sahifani aktiv qilish
+  // Admin section sarlavhalarini ham yashir (agar hech kim ko'rmasа)
+  const isAdmin = currentUser.role === 'admin' || allowed.includes('users');
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.style.display = isAdmin ? '' : 'none';
+  });
   markNavActive(currentPage);
 }
 
@@ -1609,7 +1632,7 @@ const PAGE_TITLES={
 
 function showPage(name,extra){
   // Mobilda sidebar yoping
-  closeMobileSidebar();
+  if(typeof closeMobileSidebar === 'function') closeMobileSidebar();
 
   // ── Ruxsat tekshirish ──
   if(name !== 'dashboard' && currentUser && !canAccess(name)){
