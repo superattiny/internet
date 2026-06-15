@@ -544,26 +544,83 @@ function renderBot(){
   const badge = document.getElementById('navBotBadge');
   if(badge){ badge.style.display = total>0?'inline':'none'; badge.textContent=total; }
 
+  // WebSocket holati
+  const wsConnected = window._ws && window._ws.readyState === 1;
+
   document.getElementById('page-bot').innerHTML=`
-    <div style="display:grid;grid-template-columns:300px 1fr;gap:0;height:calc(100vh - 106px);
+
+    <!-- STATUS BAR -->
+    <div style="display:flex;align-items:center;justify-content:space-between;
+      flex-wrap:wrap;gap:10px;margin-bottom:14px">
+
+      <!-- WS holati -->
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;
+        background:${wsConnected?'rgba(16,185,129,.1)':'rgba(245,158,11,.08)'};
+        border:1px solid ${wsConnected?'rgba(16,185,129,.3)':'rgba(245,158,11,.3)'};
+        border-radius:10px;font-size:12.5px">
+        <div style="width:8px;height:8px;border-radius:50%;
+          background:${wsConnected?'var(--green)':'var(--yellow)'};
+          ${wsConnected?'':'animation:pulse-dot 1.5s ease infinite'}"></div>
+        <span style="color:${wsConnected?'var(--green)':'var(--yellow)'}">
+          ${wsConnected
+            ? '📡 Server ulangan — real xabarlar kelmoqda'
+            : '⚠️ Server ulanmagan — faqat test rejimida ishlaydi'}
+        </span>
+      </div>
+
+      <!-- Tugmalar -->
+      <div style="display:flex;gap:8px">
+        <button onclick="openTestBotMsgModal()"
+          style="display:flex;align-items:center;gap:6px;padding:8px 16px;
+          background:linear-gradient(135deg,rgba(6,182,212,.25),rgba(59,130,246,.2));
+          border:1.5px solid rgba(6,182,212,.5);border-radius:10px;
+          color:var(--cyan);font-size:13px;font-weight:700;cursor:pointer;
+          transition:all .2s"
+          onmouseover="this.style.background='linear-gradient(135deg,rgba(6,182,212,.4),rgba(59,130,246,.35))'"
+          onmouseout="this.style.background='linear-gradient(135deg,rgba(6,182,212,.25),rgba(59,130,246,.2))'">
+          🧪 Test xabar yuborish
+        </button>
+        ${chats.length>0?`
+        <button onclick="if(confirm('Barcha bot xabarlarini o\\'chirishni xohlaysizmi?')){DB.set('bot_chats',[]);activeBotChat=null;showBotBadge();renderBot();toast('Bot xabarlari tozalandi','info')}"
+          style="padding:8px 14px;background:rgba(239,68,68,.1);border:1.5px solid rgba(239,68,68,.3);
+          border-radius:10px;color:var(--red);font-size:12px;font-weight:700;cursor:pointer">
+          🗑 Tozalash
+        </button>`:''}
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:300px 1fr;gap:0;height:calc(100vh - 160px);
       border:1px solid var(--border);border-radius:14px;overflow:hidden">
 
       <!-- CHAP: Suhbatlar ro'yxati -->
       <div style="background:var(--sidebar);border-right:1px solid var(--border);
         display:flex;flex-direction:column">
-        <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
-          <div style="font-size:13px;font-weight:800;color:var(--cyan);margin-bottom:2px">
-            🤖 Bot Xabarlar
+        <div style="padding:14px 16px;border-bottom:1px solid var(--border);
+          display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:13px;font-weight:800;color:var(--cyan);margin-bottom:2px">
+              🤖 Bot Xabarlar
+            </div>
+            <div style="font-size:11px;color:var(--text2)">${chats.length} ta suhbat</div>
           </div>
-          <div style="font-size:11px;color:var(--text2)">${chats.length} ta suhbat</div>
+          ${total>0?`<span style="background:var(--red);color:white;font-size:11px;font-weight:800;
+            padding:2px 8px;border-radius:10px">${total} yangi</span>`:''}
         </div>
 
         <div style="flex:1;overflow-y:auto">
           ${chats.length===0?`
           <div style="padding:24px;text-align:center;color:var(--text2)">
-            <div style="font-size:32px;margin-bottom:8px">🤖</div>
-            <div style="font-size:13px">Hali xabar yo'q</div>
-            <div style="font-size:11px;margin-top:4px">Bot ga yozilganda bu yerda ko'rinadi</div>
+            <div style="font-size:40px;margin-bottom:10px">🤖</div>
+            <div style="font-size:13px;font-weight:600">Hali xabar yo'q</div>
+            <div style="font-size:11px;margin-top:6px;color:var(--text2)">
+              Bot ga yozilganda bu yerda ko'rinadi
+            </div>
+            <button onclick="openTestBotMsgModal()"
+              style="margin-top:14px;padding:8px 16px;background:rgba(6,182,212,.15);
+              border:1.5px solid rgba(6,182,212,.4);border-radius:8px;
+              color:var(--cyan);font-size:12px;font-weight:700;cursor:pointer">
+              🧪 Test xabar yozish
+            </button>
           </div>`:''}
 
           ${chats.map(c=>`
@@ -584,7 +641,10 @@ function renderBot(){
                 <div>
                   <div style="font-weight:700;font-size:13px">${c.from||'Noma\'lum'}</div>
                   <div style="font-size:10px;color:var(--text2)">
-                    ${c.username?'@'+c.username:''} · ${c.source==='telegram'?'Telegram':'?'}
+                    ${c.username?'@'+c.username+' · ':''}
+                    <span style="color:${c.source==='instagram'?'#e1306c':'var(--cyan)'}">
+                      ${c.source==='instagram'?'📸 Instagram':'✈️ Telegram'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -595,6 +655,10 @@ function renderBot(){
             <div style="font-size:11.5px;color:var(--text2);margin-left:40px;
               overflow:hidden;white-space:nowrap;text-overflow:ellipsis">
               ${(c.messages||[]).slice(-1)[0]?.text?.slice(0,40)||'...'}
+            </div>
+            <div style="font-size:10px;color:#475569;margin-left:40px;margin-top:2px">
+              ${c.lastDate?new Date(c.lastDate).toLocaleString('uz-UZ',{
+                month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):''}
             </div>
           </div>`).join('')}
         </div>
@@ -611,6 +675,105 @@ function renderBot(){
         </div>`}
       </div>
     </div>`;
+}
+
+// ================================================================
+//  TEST BOT XABAR — Backend bo'lmasa ham sinash uchun
+// ================================================================
+function openTestBotMsgModal(){
+  const sources = [
+    {val:'telegram', label:'✈️ Telegram'},
+    {val:'instagram', label:'📸 Instagram'}
+  ];
+  openModal('modalTestBot',`
+    <div class="modal-header">
+      <div class="modal-title">🧪 Test Bot Xabar Yuborish</div>
+      <button class="modal-close" onclick="closeModal('modalTestBot')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:rgba(6,182,212,.08);border:1px solid rgba(6,182,212,.25);
+        border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:12.5px;color:var(--cyan)">
+        💡 Bu test rejimi — haqiqiy bot o'rniga qo'lda xabar kiritasiz.
+        Real botda bu avtomatik keladi.
+      </div>
+      <div class="form-group">
+        <label>👤 Kimdan (ism)</label>
+        <input id="testBotFrom" placeholder="Alisher Karimov" value="Alisher Karimov">
+      </div>
+      <div class="form-group">
+        <label>🔗 Username (ixtiyoriy)</label>
+        <input id="testBotUsername" placeholder="alisher_k">
+      </div>
+      <div class="form-group">
+        <label>📱 Manba</label>
+        <select id="testBotSource" style="width:100%;padding:9px 12px;background:var(--card2);
+          border:1.5px solid var(--border);border-radius:8px;color:var(--text);
+          font-size:13px;outline:none;font-family:inherit">
+          ${sources.map(s=>`<option value="${s.val}">${s.label}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>💬 Xabar matni <span style="color:var(--red)">*</span></label>
+        <textarea id="testBotMsg" rows="3"
+          placeholder="Salom! TV ta'mirlash bo'yicha so'ramoqchi edim..."
+          style="resize:vertical">Salom! Samsung TV ekrani yonmayapti, narxi qancha?</textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalTestBot')">Bekor</button>
+      <button onclick="saveTestBotMsg()"
+        style="display:flex;align-items:center;gap:8px;padding:10px 20px;
+        background:linear-gradient(135deg,var(--cyan),var(--blue));
+        border:none;border-radius:10px;color:white;font-weight:700;
+        font-size:14px;cursor:pointer">
+        ✈️ Xabar Yuborish
+      </button>
+    </div>
+  `,'modal-md');
+}
+
+function saveTestBotMsg(){
+  const from = document.getElementById('testBotFrom').value.trim();
+  const username = document.getElementById('testBotUsername').value.trim();
+  const source = document.getElementById('testBotSource').value;
+  const text = document.getElementById('testBotMsg').value.trim();
+
+  if(!from){ toast('Ism kiritilishi shart!','error'); return; }
+  if(!text){ toast('Xabar matni kiritilishi shart!','error'); return; }
+
+  // Yangi chat ID generatsiya
+  const chatId = 'test_' + Date.now();
+  const chats = DB.get('bot_chats');
+
+  const newConv = {
+    id: nextId(chats),
+    chatId,
+    from,
+    username,
+    source,
+    messages: [{
+      role: 'user',
+      text,
+      date: new Date().toISOString()
+    }],
+    lastDate: new Date().toISOString(),
+    unread: 1
+  };
+  chats.push(newConv);
+  DB.set('bot_chats', chats);
+
+  closeModal('modalTestBot');
+  showBotBadge();
+  activeBotChat = chatId;
+
+  // Bildirishnoma
+  toast(`📩 Yangi xabar: ${from} — "${text.slice(0,30)}..."`, 'info');
+
+  renderBot();
+  setTimeout(()=>{
+    const el = document.getElementById('botMsgScroll');
+    if(el) el.scrollTop = el.scrollHeight;
+  }, 100);
 }
 
 function renderBotMessages(chatId){
@@ -730,20 +893,30 @@ function sendBotReply(chatId){
   const text = document.getElementById('botReplyText')?.value.trim();
   if(!text) return;
 
-  // WebSocket orqali server.js ga yuborish
-  if(window._ws && window._ws.readyState === 1){
-    window._ws.send(JSON.stringify({ type: 'tg_reply', chatId, text }));
-  } else {
-    toast('Server ulanmagan! server.js ni ishga tushiring.', 'error');
-    return;
+  const isTest = chatId.startsWith('test_');
+
+  // WebSocket orqali server.js ga yuborish (faqat real bot uchun)
+  if(!isTest){
+    if(window._ws && window._ws.readyState === 1){
+      window._ws.send(JSON.stringify({ type: 'tg_reply', chatId, text }));
+      toast('✈️ Telegram ga yuborildi');
+    } else {
+      toast('⚠️ Server ulanmagan — javob faqat CRM da saqlandi', 'info');
+    }
   }
 
-  // CRM da ham saqlash
+  // CRM da saqlash (har doim)
   const chats = DB.get('bot_chats');
   const conv = chats.find(c => c.chatId === chatId);
   if(conv){
     conv.messages = conv.messages||[];
-    conv.messages.push({ role:'bot', text, date: new Date().toISOString(), manual:true });
+    conv.messages.push({
+      role: 'bot',
+      text,
+      date: new Date().toISOString(),
+      manual: true,
+      by: currentUser?.name || 'Admin'
+    });
     conv.lastDate = new Date().toISOString();
     DB.set('bot_chats', chats);
   }
@@ -754,7 +927,8 @@ function sendBotReply(chatId){
     const el = document.getElementById('botMsgScroll');
     if(el) el.scrollTop = el.scrollHeight;
   }, 50);
-  toast('✈️ Xabar yuborildi');
+
+  if(isTest) toast('💬 Javob saqlandi (test rejimi)');
 }
 
 function parseCallNumber(raw){
