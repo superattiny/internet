@@ -1,0 +1,27 @@
+# ================================================================
+#  Netlify Configuration — TV CRM Tizimi
+# ================================================================
+
+[build]
+  publish = "."
+
+# "/" → CRM_Tizimi.html (transparent rewrite)
+[[redirects]]
+  from = "/"
+  to   = "/CRM_Tizimi.html"
+  status = 200
+
+# 404 ham CRM ga yo'naltirilsin
+[[redirects]]
+  from = "/*"
+  to   = "/CRM_Tizimi.html"
+  status = 200
+
+# Security headers
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options        = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy        = "strict-origin-when-cross-origin"
+    Cache-Control          = "no-cache, no-store, must-revalidate"
