@@ -421,19 +421,21 @@ tbody tr:last-child td{border-bottom:none}
 let _activeCallNumber = '';
 
 function initTelephony(){
-  if('Notification' in window){
-    Notification.requestPermission().then(p=>{
-      if(p==='granted') toast('🔔 Bildirishnomalar yoqildi','info');
-    });
-  }
-  // Service Worker orqali xabarlarni ushlab olish
-  if('serviceWorker' in navigator){
-    navigator.serviceWorker.addEventListener('message', e=>{
-      if(e.data&&e.data.type==='INCOMING_CALL'){
-        parseCallNumber(e.data.number||'');
-      }
-    });
-  }
+  if('Notification' in window) Notification.requestPermission();
+  initWebSocketPhone();
+}
+
+function initWebSocketPhone(){
+  try{
+    const ws = new WebSocket('ws://127.0.0.1:8080');
+    ws.onopen    = ()=> console.log('📞 WS ulandi');
+    ws.onmessage = e => {
+      const match = (e.data||'').match(/\+?[\d\s\-\(\)]{9,16}/);
+      if(match) parseCallNumber(match[0]);
+    };
+    ws.onerror = ()=>{};
+    ws.onclose = ()=> setTimeout(initWebSocketPhone, 5000);
+  }catch(e){}
 }
 
 function parseCallNumber(raw){
