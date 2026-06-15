@@ -195,6 +195,128 @@ tbody tr:last-child td{border-bottom:none}
 .toast-success{background:#064e3b;color:#6ee7b7;border:1px solid #065f46}
 .toast-error{background:#7f1d1d;color:#fca5a5;border:1px solid #991b1b}
 .toast-info{background:#1e3a5f;color:#93c5fd;border:1px solid #1d4ed8}
+
+/* ================================================================
+   RESPONSIVE — MOBIL VA TABLET
+   ================================================================ */
+
+/* Hamburger tugma (desktop da yashirin) */
+.hamburger-btn{
+  display:none;width:38px;height:38px;border-radius:10px;border:1.5px solid var(--border);
+  background:var(--card2);cursor:pointer;align-items:center;justify-content:center;
+  flex-direction:column;gap:4px;flex-shrink:0;transition:all .15s
+}
+.hamburger-btn:hover{border-color:var(--purple);background:rgba(124,58,237,.1)}
+.hamburger-btn span{display:block;width:18px;height:2px;background:var(--text2);border-radius:2px;transition:all .3s}
+.hamburger-btn.active span:nth-child(1){transform:translateY(6px) rotate(45deg);background:var(--purple2)}
+.hamburger-btn.active span:nth-child(2){opacity:0}
+.hamburger-btn.active span:nth-child(3){transform:translateY(-6px) rotate(-45deg);background:var(--purple2)}
+
+/* Sidebar overlay (mobil da) */
+.sidebar-overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);
+  backdrop-filter:blur(2px);z-index:9;
+}
+.sidebar-overlay.show{display:block}
+
+/* ── TABLET: 768–1024px ─────────────────────────── */
+@media (max-width:1024px){
+  .stats-grid{grid-template-columns:repeat(3,1fr)}
+}
+
+/* ── MOBIL: < 768px ─────────────────────────────── */
+@media (max-width:768px){
+
+  /* Hamburger ko'rinadigan bo'ladi */
+  .hamburger-btn{display:flex !important}
+
+  /* Sidebar — chap tomonga yashirinadi */
+  .sidebar{
+    transform:translateX(-100%);
+    transition:transform .28s cubic-bezier(.4,0,.2,1);
+    z-index:100;width:260px
+  }
+  .sidebar.mob-open{transform:translateX(0)}
+
+  /* Kalendar mobilda kichik */
+  #sidebarCalendar{padding:6px 10px 0 !important}
+
+  /* Asosiy kontent — chap margin yo'q */
+  .main-content{margin-left:0}
+
+  /* Topbar */
+  .topbar{height:52px;padding:0 12px}
+  .topbar-title{font-size:14px}
+  /* Balans topbar da qisqa */
+  #topbarBalance{padding:5px 10px !important;font-size:11px !important}
+  /* Обновить matni yashirin */
+  #refreshLabel{display:none}
+
+  /* Sahifa body */
+  .page-body{padding:12px}
+
+  /* Stats grid 2 ustun */
+  .stats-grid{grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+  .stat-card{padding:12px 10px;border-radius:12px}
+  .stat-value{font-size:20px}
+  .stat-icon{width:38px;height:38px;font-size:17px}
+  .stat-label{font-size:10.5px}
+
+  /* Grid 2 — 1 ustun */
+  .grid-2{grid-template-columns:1fr}
+  .col-span-2{grid-column:1}
+
+  /* Jadval — scroll bilan */
+  .table-wrap{-webkit-overflow-scrolling:touch}
+  th{padding:8px 10px;font-size:10px}
+  td{padding:9px 10px;font-size:12px}
+
+  /* Modal — pastdan chiqadigan sheet */
+  .modal-overlay{align-items:flex-end;padding:0}
+  .modal-sm,.modal-md,.modal-lg{
+    max-width:100%;border-radius:20px 20px 0 0;
+    max-height:92vh;margin:0
+  }
+
+  /* Card */
+  .card{border-radius:12px}
+  .card-header{padding:12px 14px 0}
+  .card-body{padding:12px 14px 14px}
+
+  /* Toast — pastda to'liq kenglikda */
+  .toast-container{bottom:10px;right:10px;left:10px}
+  .toast{font-size:12.5px;padding:10px 14px}
+
+  /* Info row */
+  .info-row{flex-direction:column;gap:2px}
+  .info-label{min-width:unset;font-size:11px}
+
+  /* Tabs — kichik */
+  .tab{padding:6px 11px;font-size:12px}
+
+  /* Search box */
+  .search-box{max-width:100%}
+
+  /* Dial FAB va panel — pastga qo'yiladi */
+  #dialFab{bottom:14px;right:14px;width:44px;height:44px}
+  #dialPanel{bottom:70px;right:10px;left:10px;width:auto}
+
+  /* Bo'sh holat */
+  .empty-state{padding:32px 16px}
+  .empty-icon{font-size:36px}
+
+  /* Dashboard: ikki ustunli grid 1 ga tushadi */
+  .dash-two-col{display:flex !important;flex-direction:column !important}
+}
+
+/* ── KICHIK TELEFON: < 480px ────────────────────── */
+@media (max-width:480px){
+  .stats-grid{grid-template-columns:1fr 1fr;gap:8px}
+  .stat-value{font-size:17px}
+  .stat-icon{width:32px;height:32px;font-size:15px}
+  .page-body{padding:10px}
+  .topbar-title{font-size:13px;max-width:120px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+}
 </style>
 </head>
 <body>
@@ -221,6 +343,9 @@ tbody tr:last-child td{border-bottom:none}
     <div class="hint">Standart: <span>admin / admin123</span></div>
   </div>
 </div>
+
+<!-- Sidebar overlay (mobil da) -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileSidebar()"></div>
 
 <!-- MAIN APP -->
 <div id="app">
@@ -253,6 +378,10 @@ tbody tr:last-child td{border-bottom:none}
   <div class="main-content">
     <div class="topbar">
       <div class="topbar-left">
+        <!-- Hamburger (mobil uchun) -->
+        <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleMobileSidebar()">
+          <span></span><span></span><span></span>
+        </button>
         <span style="font-size:20px" id="topbarIcon">🏠</span>
         <span class="topbar-title" id="topbarTitle">Bosh Sahifa</span>
         <span id="overdueAlert" style="display:none">
@@ -288,7 +417,7 @@ tbody tr:last-child td{border-bottom:none}
           onmouseover="this.style.background='linear-gradient(135deg,rgba(59,130,246,.5),rgba(124,58,237,.5))';this.querySelector('span').style.transform='rotate(180deg)'"
           onmouseout="this.style.background='linear-gradient(135deg,rgba(59,130,246,.3),rgba(124,58,237,.3))';this.querySelector('span').style.transform='rotate(0deg)'">
           <span style="font-size:15px;display:inline-block;transition:transform .4s">🔄</span>
-          Обновить
+          <span id="refreshLabel">Обновить</span>
         </button>
       </div>
     </div>
@@ -1455,6 +1584,9 @@ const PAGE_TITLES={
 };
 
 function showPage(name,extra){
+  // Mobilda sidebar yoping
+  closeMobileSidebar();
+
   // ── Ruxsat tekshirish ──
   if(name !== 'dashboard' && currentUser && !canAccess(name)){
     toast(`🔒 "${PAGE_TITLES[name]?.title||name}" bo'limiga kirishga ruxsat yo'q`, 'error');
@@ -1596,7 +1728,7 @@ function renderDashboard(){
       </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 320px;gap:18px;margin-bottom:18px">
+    <div class="dash-two-col" style="display:grid;grid-template-columns:1fr 320px;gap:18px;margin-bottom:18px">
 
       <!-- So'nggi buyurtmalar -->
       <div class="card">
@@ -6558,6 +6690,31 @@ function openModal(id,content,size='modal-md'){
 function closeModal(id){
   const el=document.getElementById('overlay_'+id);
   if(el)el.style.display='none';
+}
+
+// ================================================================
+//  MOBIL SIDEBAR
+// ================================================================
+function toggleMobileSidebar(){
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  const btn = document.getElementById('hamburgerBtn');
+  const isOpen = sidebar.classList.contains('mob-open');
+  if(isOpen){
+    sidebar.classList.remove('mob-open');
+    overlay.classList.remove('show');
+    btn.classList.remove('active');
+  } else {
+    sidebar.classList.add('mob-open');
+    overlay.classList.add('show');
+    btn.classList.add('active');
+  }
+}
+
+function closeMobileSidebar(){
+  document.querySelector('.sidebar')?.classList.remove('mob-open');
+  document.getElementById('sidebarOverlay')?.classList.remove('show');
+  document.getElementById('hamburgerBtn')?.classList.remove('active');
 }
 
 // ================================================================
