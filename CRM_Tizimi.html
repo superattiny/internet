@@ -259,6 +259,10 @@ tbody tr:last-child td{border-bottom:none}
         <span class="ni">💰</span><span>Balans</span>
       </div>
       <div class="nav-section">Boshqa</div>
+      <div class="nav-item" onclick="showPage('bot')">
+        <span class="ni">🤖</span><span>Bot / Xabarlar</span>
+        <span class="nav-badge" id="navBotBadge" style="display:none">0</span>
+      </div>
       <div class="nav-item" onclick="showPage('chats')">
         <span class="ni">📞</span><span>Qo'ng'iroqlar</span>
       </div>
@@ -339,6 +343,7 @@ tbody tr:last-child td{border-bottom:none}
       <div id="page-clients" style="display:none"></div>
       <div id="page-finance" style="display:none"></div>
       <div id="page-workers" style="display:none"></div>
+      <div id="page-bot" style="display:none"></div>
       <div id="page-chats" style="display:none"></div>
       <div id="page-reminders" style="display:none"></div>
       <div id="page-archive" style="display:none"></div>
@@ -452,14 +457,304 @@ function initTelephony(){
 function initWebSocketPhone(){
   try{
     const ws = new WebSocket('ws://127.0.0.1:8080');
-    ws.onopen    = ()=> console.log('📞 WS ulandi');
+    ws.onopen = () => {
+      console.log('📡 WS ulandi');
+      document.getElementById('wsStatus')?.classList.add('ws-online');
+    };
     ws.onmessage = e => {
-      const match = (e.data||'').match(/\+?[\d\s\-\(\)]{9,16}/);
-      if(match) parseCallNumber(match[0]);
+      try {
+        const data = JSON.parse(e.data);
+        if(data.type === 'call'){
+          const match = (data.number||'').match(/\+?[\d\s\-\(\)]{9,16}/);
+          if(match) parseCallNumber(match[0]);
+        }
+        else if(data.type === 'tg_message'){
+          saveBotMessage(data, 'user');
+          showBotBadge();
+          if(currentPage==='bot') renderBot();
+        }
+        else if(data.type === 'tg_bot_reply'){
+          saveBotMessage(data, 'bot');
+          if(currentPage==='bot') renderBot();
+        }
+      } catch(e){}
     };
     ws.onerror = ()=>{};
-    ws.onclose = ()=> setTimeout(initWebSocketPhone, 5000);
+    ws.onclose = ()=>{
+      document.getElementById('wsStatus')?.classList.remove('ws-online');
+      setTimeout(initWebSocketPhone, 5000);
+    };
+    window._ws = ws;
   }catch(e){}
+}
+
+// Bot xabarini saqlash
+function saveBotMessage(data, role){
+  const chats = DB.get('bot_chats');
+  const chatId = String(data.chatId);
+
+  // Mavjud chat topamiz yoki yangisini ochamiz
+  let conv = chats.find(c => c.chatId === chatId);
+  if(!conv){
+    conv = {
+      id: nextId(chats),
+      chatId,
+      from: data.from || 'Noma\'lum',
+      username: data.username || '',
+      source: data.source || 'telegram',
+      messages: [],
+      lastDate: data.date,
+      unread: 0
+    };
+    chats.push(conv);
+  }
+
+  conv.messages = conv.messages || [];
+  conv.messages.push({
+    role,  // 'user' yoki 'bot'
+    text: data.text,
+    date: data.date || new Date().toISOString()
+  });
+  conv.lastDate = data.date || new Date().toISOString();
+  if(role === 'user') conv.unread = (conv.unread||0) + 1;
+
+  DB.set('bot_chats', chats);
+}
+
+// Badge yangilash
+function showBotBadge(){
+  const total = DB.get('bot_chats').reduce((s,c)=>s+(c.unread||0),0);
+  const badge = document.getElementById('navBotBadge');
+  if(badge){
+    badge.style.display = total > 0 ? 'inline' : 'none';
+    badge.textContent = total;
+  }
+}
+
+// ================================================================
+//  BOT SAHIFASI
+// ================================================================
+let activeBotChat = null;
+
+function renderBot(){
+  const chats = DB.get('bot_chats').slice().reverse();
+
+  // Unread badge
+  const total = chats.reduce((s,c)=>s+(c.unread||0),0);
+  const badge = document.getElementById('navBotBadge');
+  if(badge){ badge.style.display = total>0?'inline':'none'; badge.textContent=total; }
+
+  document.getElementById('page-bot').innerHTML=`
+    <div style="display:grid;grid-template-columns:300px 1fr;gap:0;height:calc(100vh - 106px);
+      border:1px solid var(--border);border-radius:14px;overflow:hidden">
+
+      <!-- CHAP: Suhbatlar ro'yxati -->
+      <div style="background:var(--sidebar);border-right:1px solid var(--border);
+        display:flex;flex-direction:column">
+        <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
+          <div style="font-size:13px;font-weight:800;color:var(--cyan);margin-bottom:2px">
+            🤖 Bot Xabarlar
+          </div>
+          <div style="font-size:11px;color:var(--text2)">${chats.length} ta suhbat</div>
+        </div>
+
+        <div style="flex:1;overflow-y:auto">
+          ${chats.length===0?`
+          <div style="padding:24px;text-align:center;color:var(--text2)">
+            <div style="font-size:32px;margin-bottom:8px">🤖</div>
+            <div style="font-size:13px">Hali xabar yo'q</div>
+            <div style="font-size:11px;margin-top:4px">Bot ga yozilganda bu yerda ko'rinadi</div>
+          </div>`:''}
+
+          ${chats.map(c=>`
+          <div onclick="openBotChat('${c.chatId}')"
+            style="padding:12px 16px;border-bottom:1px solid rgba(45,45,80,.4);
+            cursor:pointer;transition:background .15s;
+            background:${activeBotChat===c.chatId?'rgba(6,182,212,.1)':'transparent'}"
+            onmouseover="this.style.background='rgba(255,255,255,.04)'"
+            onmouseout="this.style.background='${activeBotChat===c.chatId?'rgba(6,182,212,.1)':'transparent'}'">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;
+                  background:linear-gradient(135deg,var(--cyan),var(--blue));
+                  display:flex;align-items:center;justify-content:center;
+                  font-size:14px;font-weight:700;color:white">
+                  ${(c.from||'?')[0].toUpperCase()}
+                </div>
+                <div>
+                  <div style="font-weight:700;font-size:13px">${c.from||'Noma\'lum'}</div>
+                  <div style="font-size:10px;color:var(--text2)">
+                    ${c.username?'@'+c.username:''} · ${c.source==='telegram'?'Telegram':'?'}
+                  </div>
+                </div>
+              </div>
+              ${(c.unread||0)>0?`
+              <span style="background:var(--cyan);color:#0f172a;font-size:10px;font-weight:800;
+                padding:2px 7px;border-radius:10px">${c.unread}</span>`:''}
+            </div>
+            <div style="font-size:11.5px;color:var(--text2);margin-left:40px;
+              overflow:hidden;white-space:nowrap;text-overflow:ellipsis">
+              ${(c.messages||[]).slice(-1)[0]?.text?.slice(0,40)||'...'}
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>
+
+      <!-- O'NG: Chat oynasi -->
+      <div style="display:flex;flex-direction:column;background:var(--bg)" id="botChatArea">
+        ${activeBotChat ? renderBotMessages(activeBotChat) : `
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;
+          flex-direction:column;gap:12px;color:var(--text2)">
+          <div style="font-size:48px">🤖</div>
+          <div style="font-size:14px;font-weight:600">Suhbat tanlang</div>
+          <div style="font-size:12px">Chap tomondagi ro'yxatdan suhbat bosing</div>
+        </div>`}
+      </div>
+    </div>`;
+}
+
+function renderBotMessages(chatId){
+  const chats = DB.get('bot_chats');
+  const conv = chats.find(c => c.chatId === chatId);
+  if(!conv) return '';
+
+  const msgs = (conv.messages||[]);
+
+  return `
+    <!-- Header -->
+    <div style="padding:12px 18px;background:var(--sidebar);border-bottom:1px solid var(--border);
+      display:flex;align-items:center;gap:12px">
+      <div style="width:36px;height:36px;border-radius:50%;
+        background:linear-gradient(135deg,var(--cyan),var(--blue));
+        display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:white">
+        ${(conv.from||'?')[0].toUpperCase()}
+      </div>
+      <div>
+        <div style="font-weight:700;font-size:14px">${conv.from}</div>
+        <div style="font-size:11px;color:var(--cyan)">
+          ${conv.username?'@'+conv.username+' · ':''}Telegram
+        </div>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <button onclick="clearBotUnread('${chatId}')"
+          style="padding:5px 10px;border-radius:7px;border:1px solid var(--border);
+          background:transparent;color:var(--text2);font-size:11px;cursor:pointer">
+          ✓ O'qildi
+        </button>
+        <button onclick="openNewClientModal({name:'${conv.from}'})"
+          style="padding:5px 10px;border-radius:7px;border:1px solid rgba(124,58,237,.4);
+          background:rgba(124,58,237,.1);color:var(--purple2);font-size:11px;cursor:pointer">
+          👤 Mijoz qo'sh
+        </button>
+        <button onclick="openNewOrderModal(null,'${conv.from}','')"
+          style="padding:5px 10px;border-radius:7px;border:1px solid rgba(16,185,129,.4);
+          background:rgba(16,185,129,.1);color:var(--green);font-size:11px;cursor:pointer">
+          📋 Buyurtma
+        </button>
+      </div>
+    </div>
+
+    <!-- Xabarlar -->
+    <div id="botMsgScroll" style="flex:1;overflow-y:auto;padding:16px;
+      display:flex;flex-direction:column;gap:10px">
+      ${msgs.map(m=>`
+      <div style="display:flex;flex-direction:${m.role==='user'?'row':'row-reverse'};
+        align-items:flex-end;gap:8px">
+        ${m.role==='user'?`
+        <div style="width:28px;height:28px;border-radius:50%;flex-shrink:0;
+          background:linear-gradient(135deg,var(--cyan),var(--blue));
+          display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white">
+          ${(conv.from||'?')[0].toUpperCase()}
+        </div>`:`
+        <div style="width:28px;height:28px;border-radius:50%;flex-shrink:0;
+          background:linear-gradient(135deg,var(--purple),var(--purple2));
+          display:flex;align-items:center;justify-content:center;font-size:14px">🤖</div>`}
+        <div style="max-width:70%">
+          <div style="padding:10px 14px;border-radius:${m.role==='user'?'4px 14px 14px 14px':'14px 4px 14px 14px'};
+            background:${m.role==='user'?'var(--card2)':'rgba(124,58,237,.2)'};
+            font-size:13.5px;line-height:1.5;word-break:break-word">
+            ${m.text.replace(/\n/g,'<br>')}
+          </div>
+          <div style="font-size:10px;color:var(--text2);margin-top:3px;
+            text-align:${m.role==='user'?'left':'right'}">
+            ${new Date(m.date).toLocaleTimeString('uz-UZ',{hour:'2-digit',minute:'2-digit'})}
+            ${m.role==='bot'?'<span style="color:var(--cyan)"> · 🤖 AI</span>':''}
+          </div>
+        </div>
+      </div>`).join('')}
+    </div>
+
+    <!-- Javob yozish -->
+    <div style="padding:12px 16px;background:var(--sidebar);border-top:1px solid var(--border)">
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <textarea id="botReplyText" placeholder="Qo'lda javob yozing..."
+          rows="2"
+          style="flex:1;padding:10px 12px;background:var(--card2);border:1.5px solid var(--border);
+          border-radius:10px;color:var(--text);font-size:13px;outline:none;
+          font-family:inherit;resize:none;transition:border-color .2s"
+          onfocus="this.style.borderColor='var(--cyan)'"
+          onfocusout="this.style.borderColor='var(--border)'"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendBotReply('${chatId}')}"></textarea>
+        <button onclick="sendBotReply('${chatId}')"
+          style="padding:10px 18px;background:linear-gradient(135deg,var(--cyan),var(--blue));
+          border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;
+          font-size:14px;white-space:nowrap">
+          ✈️ Yuborish
+        </button>
+      </div>
+      <div style="font-size:10px;color:var(--text2);margin-top:5px">
+        Enter — yuborish · Shift+Enter — yangi qator · AI avtomatik javob beradi
+      </div>
+    </div>`;
+}
+
+function openBotChat(chatId){
+  activeBotChat = chatId;
+  clearBotUnread(chatId);
+  renderBot();
+  // Pastga scroll
+  setTimeout(()=>{
+    const el = document.getElementById('botMsgScroll');
+    if(el) el.scrollTop = el.scrollHeight;
+  }, 100);
+}
+
+function clearBotUnread(chatId){
+  const chats = DB.get('bot_chats');
+  const conv = chats.find(c => c.chatId === chatId);
+  if(conv){ conv.unread = 0; DB.set('bot_chats', chats); }
+  showBotBadge();
+}
+
+function sendBotReply(chatId){
+  const text = document.getElementById('botReplyText')?.value.trim();
+  if(!text) return;
+
+  // WebSocket orqali server.js ga yuborish
+  if(window._ws && window._ws.readyState === 1){
+    window._ws.send(JSON.stringify({ type: 'tg_reply', chatId, text }));
+  } else {
+    toast('Server ulanmagan! server.js ni ishga tushiring.', 'error');
+    return;
+  }
+
+  // CRM da ham saqlash
+  const chats = DB.get('bot_chats');
+  const conv = chats.find(c => c.chatId === chatId);
+  if(conv){
+    conv.messages = conv.messages||[];
+    conv.messages.push({ role:'bot', text, date: new Date().toISOString(), manual:true });
+    conv.lastDate = new Date().toISOString();
+    DB.set('bot_chats', chats);
+  }
+
+  document.getElementById('botReplyText').value = '';
+  renderBot();
+  setTimeout(()=>{
+    const el = document.getElementById('botMsgScroll');
+    if(el) el.scrollTop = el.scrollHeight;
+  }, 50);
+  toast('✈️ Xabar yuborildi');
 }
 
 function parseCallNumber(raw){
@@ -909,6 +1204,7 @@ const PAGE_TITLES={
   workers:{title:'Ishchilar',icon:'👨‍🔧'},
   ustalar:{title:"Ustalar ro'yxati",icon:'👷'},
   chats:{title:'Qo\'ng\'iroqlar',icon:'📞'},
+  bot:{title:'Bot / Xabarlar',icon:'🤖'},
   reminders:{title:'Eslatmalar',icon:'🔔'},
   archive:{title:'Arxiv',icon:'📦'},
   users:{title:'Foydalanuvchilar',icon:'⚙️'}
@@ -937,6 +1233,7 @@ function renderPage(name,extra){
   else if(name==='workers')renderWorkers();
   else if(name==='ustalar')renderUstalar();
   else if(name==='chats')renderChats();
+  else if(name==='bot')renderBot();
   else if(name==='reminders')renderReminders();
   else if(name==='archive')renderArchive();
   else if(name==='users')renderUsers();
