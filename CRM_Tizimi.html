@@ -448,6 +448,7 @@ tbody tr:last-child td{border-bottom:none}
       <div id="page-archive" style="display:none"></div>
       <div id="page-ustalar" style="display:none"></div>
       <div id="page-users" style="display:none"></div>
+      <div id="page-settings" style="display:none"></div>
     </div>
   </div>
 </div>
@@ -1448,12 +1449,13 @@ const ALL_PAGES = [
   {key:'reminders', label:'Eslatmalar',      icon:'🔔', section:'Boshqa'},
   {key:'archive',   label:'Arxiv',           icon:'📦', section:'Boshqa'},
   {key:'users',     label:'Foydalanuvchilar',icon:'⚙️', section:'Admin'},
+  {key:'settings',  label:'Sozlamalar',      icon:'🛠️', section:'Admin'},
   {key:'reset',     label:"TO'LIQ RESET",   icon:'🔄', section:'Admin', special:'reset'},
 ];
 
 // Rol bo'yicha standart ruxsatlar
 const ROLE_DEFAULT_PAGES = {
-  admin:    ['dashboard','orders','clients','workers','ustalar','finance','bot','chats','reminders','archive','users','reset'],
+  admin:    ['dashboard','orders','clients','workers','ustalar','finance','bot','chats','reminders','archive','users','settings','reset'],
   operator: ['dashboard','orders','clients','workers','ustalar','bot','chats','reminders','archive'],
   master:   ['dashboard','orders','reminders']
 };
@@ -1601,7 +1603,8 @@ const PAGE_TITLES={
   bot:{title:'Bot / Xabarlar',icon:'🤖'},
   reminders:{title:'Eslatmalar',icon:'🔔'},
   archive:{title:'Arxiv',icon:'📦'},
-  users:{title:'Foydalanuvchilar',icon:'⚙️'}
+  users:{title:'Foydalanuvchilar',icon:'⚙️'},
+  settings:{title:'Sozlamalar',icon:'🛠️'}
 };
 
 function showPage(name,extra){
@@ -1638,6 +1641,7 @@ function renderPage(name,extra){
   else if(name==='reminders')renderReminders();
   else if(name==='archive')renderArchive();
   else if(name==='users')renderUsers();
+  else if(name==='settings')renderSettings();
 }
 function refreshAll(){
   updateTopbarBalance();
@@ -6687,11 +6691,327 @@ function resetUserPages(userId){
   DB.set('users', users);
   if(u.id === currentUser.id){
     currentUser = u;
-    sessionStorage.setItem('tvcrm_user', JSON.stringify(u));
+    sessionStorage.setItem('tvcrm_user', JSON.stringify({id:u.id}));
     buildSidebar();
   }
   toast(`↩️ ${u.name} standart ruxsatlarga qaytarildi`,'info');
   renderUsers();
+}
+
+// ================================================================
+//  SOZLAMALAR SAHIFASI
+// ================================================================
+function renderSettings(){
+  const s = DB.getObj('settings');
+  const fin = DB.getObj('finance');
+  const stats = {
+    orders:  DB.get('orders').length,
+    clients: DB.get('clients').length,
+    workers: DB.get('users').filter(u=>u.role!=='admin').length,
+    trans:   DB.get('transactions').length,
+    chats:   DB.get('chats').length,
+    reminders:DB.get('reminders').length,
+  };
+  let lsSize = 0;
+  try {
+    for(let k in localStorage){
+      if(k.startsWith('tvcrm_')) lsSize += (localStorage[k].length*2)/1024;
+    }
+  } catch(e){}
+
+  document.getElementById('page-settings').innerHTML=`
+    <div style="max-width:820px">
+
+    <!-- USTAXONA MA'LUMOTLARI -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header">
+        <div class="card-title">🏪 Ustaxona ma'lumotlari</div>
+        <button class="btn btn-sm btn-success" onclick="saveShopSettings()">💾 Saqlash</button>
+      </div>
+      <div class="card-body">
+        <div class="grid-2">
+          <div class="form-group">
+            <label>Ustaxona nomi</label>
+            <input id="setShopName" value="${(s.shopName||"TV Ta'mirlash Ustaxonasi").replace(/"/g,'&quot;')}">
+          </div>
+          <div class="form-group">
+            <label>Telefon raqam</label>
+            <input id="setPhone" value="${s.phone||''}" placeholder="+998 90 000 00 00">
+          </div>
+          <div class="form-group">
+            <label>Manzil</label>
+            <input id="setAddress" value="${s.address||''}" placeholder="Toshkent, ...">
+          </div>
+          <div class="form-group">
+            <label>Logotip emoji</label>
+            <input id="setEmoji" value="${s.emoji||'📺'}" maxlength="4"
+              style="font-size:22px;text-align:center">
+          </div>
+          <div class="form-group">
+            <label>Ish vaqti boshlanishi</label>
+            <input type="time" id="setWorkStart" value="${s.workStart||'09:00'}">
+          </div>
+          <div class="form-group">
+            <label>Ish vaqti tugashi</label>
+            <input type="time" id="setWorkEnd" value="${s.workEnd||'18:00'}">
+          </div>
+          <div class="form-group col-span-2">
+            <label>Default deadline</label>
+            <div style="display:flex;align-items:center;gap:12px">
+              <input type="range" id="setDeadlineDays" min="1" max="30"
+                value="${s.defaultDeadlineDays||3}"
+                style="flex:1;accent-color:var(--purple)"
+                oninput="document.getElementById('deadlineVal').textContent=this.value+' kun'">
+              <span id="deadlineVal" style="font-weight:700;color:var(--purple2);min-width:60px">
+                ${s.defaultDeadlineDays||3} kun</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Buyurtma prefiksi</label>
+            <input id="setOrderPrefix" value="${s.orderPrefix||'TV'}" maxlength="6"
+              placeholder="TV">
+          </div>
+          <div class="form-group">
+            <label>Joriy hisoblagich</label>
+            <input type="number" id="setOrderCounter" value="${s.orderCounter||0}" min="0">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BALANS SOZLAMA -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header">
+        <div class="card-title">💰 Balans sozlamasi</div>
+        <button class="btn btn-sm btn-success" onclick="saveBalanceSettings()">💾 Saqlash</button>
+      </div>
+      <div class="card-body">
+        <div class="grid-2">
+          <div class="form-group">
+            <label>Boshlang'ich balans (so'm)</label>
+            <input type="number" id="setInitBalance" value="${fin.initBalance||0}" min="0">
+            <div style="font-size:11.5px;color:var(--text2);margin-top:4px">
+              Hisobotlarda "boshlang'ich" sifatida ishlatiladi
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Joriy kassa balans</label>
+            <input type="number" id="setCurrentBalance" value="${fin.balance||0}" min="0">
+            <div style="font-size:11.5px;color:var(--yellow);margin-top:4px">
+              ⚠️ Faqat xato bo'lsa o'zgartiring
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MA'LUMOTLAR -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header">
+        <div class="card-title">💾 Ma'lumotlar va zaxira nusxa</div>
+      </div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:16px">
+          ${[
+            {icon:'📋',label:'Buyurtmalar', val:stats.orders},
+            {icon:'👥',label:'Mijozlar',    val:stats.clients},
+            {icon:'👨‍🔧',label:'Ishchilar',  val:stats.workers},
+            {icon:'💸',label:'Tranzaksiya', val:stats.trans},
+            {icon:'📞',label:"Qo'ng'iroq",  val:stats.chats},
+            {icon:'🔔',label:'Eslatma',     val:stats.reminders},
+          ].map(i=>`<div style="background:var(--card2);border:1px solid var(--border);
+            border-radius:10px;padding:10px;text-align:center">
+            <div style="font-size:18px">${i.icon}</div>
+            <div style="font-size:18px;font-weight:800;color:var(--purple2)">${i.val}</div>
+            <div style="font-size:10px;color:var(--text2)">${i.label}</div>
+          </div>`).join('')}
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;
+          background:var(--card2);border-radius:10px;margin-bottom:14px">
+          <span style="font-size:13px">💽 Hajm:</span>
+          <span style="font-weight:700;color:var(--cyan)">${lsSize.toFixed(1)} KB</span>
+          <span style="font-size:11px;color:var(--text2)">(max ~5MB)</span>
+          <div style="flex:1;height:6px;background:var(--border);border-radius:3px;margin-left:8px">
+            <div style="height:100%;border-radius:3px;
+              background:${lsSize>3000?'var(--red)':lsSize>1500?'var(--yellow)':'var(--green)'};
+              width:${Math.min(100,lsSize/5000*100)}%"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button onclick="exportData()"
+            style="display:flex;align-items:center;gap:8px;padding:10px 18px;
+            background:rgba(16,185,129,.15);border:1.5px solid rgba(16,185,129,.4);
+            border-radius:10px;color:var(--green);font-weight:700;cursor:pointer;font-size:13px">
+            📥 JSON yuklab olish
+          </button>
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 18px;
+            background:rgba(59,130,246,.12);border:1.5px solid rgba(59,130,246,.4);
+            border-radius:10px;color:var(--blue);font-weight:700;cursor:pointer;font-size:13px">
+            📤 JSON yuklash
+            <input type="file" accept=".json" onchange="importData(this)" style="display:none">
+          </label>
+          <button onclick="printReport()"
+            style="display:flex;align-items:center;gap:8px;padding:10px 18px;
+            background:rgba(245,158,11,.12);border:1.5px solid rgba(245,158,11,.4);
+            border-radius:10px;color:var(--yellow);font-weight:700;cursor:pointer;font-size:13px">
+            🖨️ Hisobot chiqarish
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TIZIM HAQIDA -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">ℹ️ Tizim haqida</div></div>
+      <div class="card-body">
+        <div class="grid-2" style="font-size:13px">
+          <div class="info-row"><span class="info-label">Versiya:</span>
+            <span style="color:var(--purple2);font-weight:700">v1.0.0 (HTML)</span></div>
+          <div class="info-row"><span class="info-label">Ma'lumotlar:</span>
+            <span>localStorage</span></div>
+          <div class="info-row"><span class="info-label">Qurilma:</span>
+            <span>${/Mobile|Android|iPhone/i.test(navigator.userAgent)?'📱 Mobil':'🖥️ Desktop'}</span></div>
+          <div class="info-row"><span class="info-label">Sana:</span>
+            <span>${new Date().toLocaleDateString('uz-UZ')}</span></div>
+        </div>
+        <div style="margin-top:14px;padding:12px 16px;background:rgba(124,58,237,.08);
+          border:1px solid rgba(124,58,237,.25);border-radius:10px;
+          font-size:12.5px;color:var(--text2);line-height:1.9">
+          ✅ <b>1-bosqich:</b> HTML + localStorage — bajarildi<br>
+          ⏳ <b>2-bosqich:</b> Netlify deploy (bepul sayt)<br>
+          ⏳ <b>3-bosqich:</b> Telegram bot + backend<br>
+          ⏳ <b>4-bosqich:</b> O'z server + domen
+        </div>
+      </div>
+    </div>
+    </div>`;
+}
+
+function saveShopSettings(){
+  const s = DB.getObj('settings');
+  s.shopName = document.getElementById('setShopName').value.trim() || s.shopName;
+  s.phone    = document.getElementById('setPhone').value.trim();
+  s.address  = document.getElementById('setAddress').value.trim();
+  s.emoji    = document.getElementById('setEmoji').value.trim() || '📺';
+  s.workStart= document.getElementById('setWorkStart').value;
+  s.workEnd  = document.getElementById('setWorkEnd').value;
+  s.defaultDeadlineDays = parseInt(document.getElementById('setDeadlineDays').value)||3;
+  s.orderPrefix = (document.getElementById('setOrderPrefix').value.trim()||'TV').toUpperCase();
+  s.orderCounter= parseInt(document.getElementById('setOrderCounter').value)||0;
+  DB.setObj('settings', s);
+  // UI yangilash
+  const iconEl = document.querySelector('.s-icon');
+  if(iconEl) iconEl.textContent = s.emoji;
+  const titleEl = document.querySelector('.s-title');
+  if(titleEl) titleEl.textContent = s.shopName;
+  const loginLogoEl = document.querySelector('.login-logo');
+  if(loginLogoEl) loginLogoEl.textContent = s.emoji;
+  const loginH1 = document.querySelector('.login-box h1');
+  if(loginH1) loginH1.textContent = s.shopName;
+  toast('✅ Sozlamalar saqlandi');
+}
+
+function saveBalanceSettings(){
+  const fin = DB.getObj('finance');
+  fin.initBalance = parseFloat(document.getElementById('setInitBalance').value)||0;
+  fin.balance     = parseFloat(document.getElementById('setCurrentBalance').value)||0;
+  DB.setObj('finance', fin);
+  updateTopbarBalance();
+  toast('✅ Balans yangilandi');
+}
+
+function exportData(){
+  const data = {};
+  ['orders','clients','users','transactions','finance','settings',
+   'reminders','chats','bot_chats'].forEach(k=>{
+    try { data[k] = JSON.parse(localStorage.getItem('tvcrm_'+k)); } catch(e){}
+  });
+  data._exported = new Date().toISOString();
+  data._version  = '1.0.0';
+  const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `crm_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  toast('📥 Ma\'lumotlar yuklab olindi');
+}
+
+function importData(input){
+  const file = input.files[0];
+  if(!file) return;
+  if(!confirm("⚠️ Mavjud ma'lumotlar o'rniga yangi ma'lumotlar yuklanadi. Davom etasizmi?")) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      const data = JSON.parse(e.target.result);
+      const keys = ['orders','clients','users','transactions','finance','settings',
+                    'reminders','chats','bot_chats'];
+      let count = 0;
+      keys.forEach(k=>{
+        if(data[k]!==undefined){
+          localStorage.setItem('tvcrm_'+k, JSON.stringify(data[k]));
+          count++;
+        }
+      });
+      toast(`✅ ${count} ta bo'lim yuklandi. Qayta yuklanmoqda...`);
+      setTimeout(()=>location.reload(), 1500);
+    } catch(err){
+      toast("❌ Fayl noto'g'ri! JSON bo'lishi kerak.",'error');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function printReport(){
+  const orders  = DB.get('orders');
+  const fin     = DB.getObj('finance');
+  const s       = DB.getObj('settings');
+  const active  = orders.filter(o=>!['delivered','cancelled'].includes(o.status));
+  const done    = orders.filter(o=>o.status==='delivered'&&o.isPaid);
+  const totalRev= done.reduce((sum,o)=>sum+(o.finalPrice||0),0);
+  const now     = new Date().toLocaleString('uz-UZ');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <title>${s.shopName||'CRM'} — Hisobot</title>
+  <style>
+    body{font-family:'Segoe UI',sans-serif;padding:20px;color:#111;max-width:800px;margin:0 auto}
+    h1{font-size:20px;border-bottom:2px solid #7c3aed;padding-bottom:8px;color:#7c3aed}
+    h2{font-size:14px;margin:16px 0 8px;color:#374151;text-transform:uppercase;letter-spacing:.05em}
+    table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px}
+    th{background:#f3f4f6;padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase}
+    td{padding:7px 10px;border-bottom:1px solid #e5e7eb}
+    .stats{display:flex;gap:14px;margin:16px 0}
+    .stat{flex:1;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px;text-align:center}
+    .sv{font-size:22px;font-weight:800;color:#7c3aed}.sl{font-size:10px;color:#6b7280;margin-top:3px}
+    @media print{.stats{display:grid;grid-template-columns:repeat(4,1fr)}}
+  </style></head><body>
+  <h1>${s.emoji||'📺'} ${s.shopName||"TV Ta'mirlash"} — Hisobot</h1>
+  <p style="color:#6b7280;font-size:12px">Sana: ${now}</p>
+  <div class="stats">
+    <div class="stat"><div class="sv">${DB.get('clients').length}</div><div class="sl">Mijozlar</div></div>
+    <div class="stat"><div class="sv">${active.length}</div><div class="sl">Faol</div></div>
+    <div class="stat"><div class="sv">${done.length}</div><div class="sl">Bajarilgan</div></div>
+    <div class="stat"><div class="sv">${Math.round(totalRev/1000)}K</div><div class="sl">Tushum (so'm)</div></div>
+  </div>
+  <h2>Faol buyurtmalar (${active.length})</h2>
+  <table><thead><tr><th>Raqam</th><th>Mijoz</th><th>Texnika</th><th>Holat</th><th>Deadline</th></tr></thead>
+  <tbody>${active.map(o=>`<tr>
+    <td><b>${o.num}</b></td><td>${o.clientName}</td>
+    <td>${o.tvBrand||''} ${o.tvModel||''}</td>
+    <td>${o.status}</td><td>${o.deadline?o.deadline.slice(0,10):'—'}</td>
+  </tr>`).join('')}</tbody></table>
+  <h2>Moliya xulosasi</h2>
+  <table><thead><tr><th>Ko'rsatkich</th><th>Summa (so'm)</th></tr></thead>
+  <tbody>
+    <tr><td>Jami tushum</td><td>${Math.round(fin.totalIncome||0).toLocaleString('uz-UZ')}</td></tr>
+    <tr><td>Jami xarajat</td><td>${Math.round(fin.totalExpense||0).toLocaleString('uz-UZ')}</td></tr>
+    <tr><td><b>Kassada hozir</b></td><td><b>${Math.round(fin.balance||0).toLocaleString('uz-UZ')}</b></td></tr>
+  </tbody></table>
+  </body></html>`;
+  const w = window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+  w.print();
 }
 
 // ================================================================
