@@ -2798,6 +2798,8 @@ function openEditChiqimModal(tId){
   const t=tr.find(x=>x.id==tId);
   if(!t)return;
   const orders=DB.get('orders').filter(o=>o.status!=='cancelled');
+  const linkedOrder=t.orderId?orders.find(o=>o.id==t.orderId):null;
+  window._expOrders=orders;
 
   openModal('modalEditChiqim',`
     <div class="modal-header">
@@ -2807,7 +2809,7 @@ function openEditChiqimModal(tId){
     <div class="modal-body">
       <div class="form-group">
         <label style="font-weight:700">Chiqim nomi <span style="color:var(--red)">*</span></label>
-        <input id="editExDesc" value="${(t.desc||'').replace(/^💸 /,'').replace(/ \(TV-.*\)$/,'')}"
+        <input id="editExDesc" value="${(t.desc||'').replace(/^💸 /,'').split(' (TV-')[0]}"
           style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;
           background:var(--card2);color:var(--text);font-size:14px;outline:none;font-family:inherit">
       </div>
@@ -2818,10 +2820,38 @@ function openEditChiqimModal(tId){
           background:var(--card2);color:var(--red);font-size:22px;font-weight:900;
           outline:none;font-family:monospace;text-align:center">
       </div>
+      <!-- Buyurtma biriktirish -->
+      <div class="form-group" style="position:relative">
+        <label>Buyurtmaga biriktirish <span style="font-size:11px;color:var(--text2)">(ixtiyoriy)</span></label>
+        <input type="hidden" id="editExOrderId" value="${t.orderId||''}">
+        <input id="editExOrderSearch"
+          placeholder="🔍 Buyurtma raqami yoki mijoz ismini yozing..."
+          autocomplete="off"
+          value="${linkedOrder?linkedOrder.num+' — '+linkedOrder.clientName:''}"
+          oninput="filterExpOrders(this.value);document.getElementById('editExOrderId').value='';document.getElementById('editExOrderSelected').style.display='none'"
+          onfocus="filterExpOrders(this.value)"
+          onfocusout="setTimeout(()=>{const r=document.getElementById('exOrderResults');if(r)r.style.display='none'},200)"
+          style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;
+          background:var(--card2);color:var(--text);font-size:13px;outline:none;font-family:inherit">
+        <div id="exOrderResults"
+          style="display:none;position:absolute;width:100%;background:var(--card);
+          border:1.5px solid var(--purple);border-radius:10px;margin-top:4px;
+          max-height:200px;overflow-y:auto;z-index:200;box-shadow:0 8px 28px rgba(0,0,0,.35)"></div>
+        <div id="editExOrderSelected"
+          style="display:${linkedOrder?'flex':'none'};justify-content:space-between;
+          align-items:center;margin-top:6px;padding:8px 12px;
+          background:rgba(124,58,237,.12);border:1.5px solid rgba(124,58,237,.4);
+          border-radius:8px;font-size:13px">
+          <span style="color:var(--purple2)">✅ ${linkedOrder?linkedOrder.num+' — '+linkedOrder.clientName:''}</span>
+          <button onmousedown="document.getElementById('editExOrderId').value='';
+            document.getElementById('editExOrderSearch').value='';
+            document.getElementById('editExOrderSelected').style.display='none'"
+            style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:15px">✕</button>
+        </div>
+      </div>
       <div style="padding:10px 14px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);
         border-radius:8px;font-size:12px;color:var(--yellow)">
         ⚠️ Eski summa: <b>${fmtMoney(t.amount)}</b> — farq balansga avtomatik qo'llanadi
-        ${t.orderId?'<br>Bu buyurtmaga bog\'liq — foyda ham qayta hisoblanadi.':''}
       </div>
     </div>
     <div class="modal-footer">
@@ -2832,11 +2862,28 @@ function openEditChiqimModal(tId){
       <button class="btn btn-primary" onclick="saveEditChiqim(${tId})">💾 Saqlash</button>
     </div>
   `,'modal-md');
+
+  // Buyurtma tanlaganda editExOrderId ni yangilash
+  window.selectExpOrder=function(id,label){
+    document.getElementById('editExOrderId').value=id;
+    document.getElementById('editExOrderSearch').value=id?label:'';
+    document.getElementById('exOrderResults').style.display='none';
+    const sel=document.getElementById('editExOrderSelected');
+    if(id&&sel){
+      sel.style.display='flex';
+      sel.innerHTML=`<span style="color:var(--purple2)">✅ ${label}</span>
+        <button onmousedown="document.getElementById('editExOrderId').value='';
+          document.getElementById('editExOrderSearch').value='';
+          document.getElementById('editExOrderSelected').style.display='none'"
+          style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:15px">✕</button>`;
+    } else if(sel){sel.style.display='none';}
+  };
 }
 
 function saveEditChiqim(tId){
   const desc=document.getElementById('editExDesc').value.trim();
   const newAmount=parseFloat(document.getElementById('editExAmount').value)||0;
+  const newOrderId=document.getElementById('editExOrderId').value||null;
   if(!desc){toast('Nom kiritilishi shart!','error');return;}
   if(newAmount<=0){toast('Summa kiritilishi shart!','error');return;}
 
@@ -2844,12 +2891,15 @@ function saveEditChiqim(tId){
   const t=trs.find(x=>x.id==tId);
   if(!t)return;
 
+  const oldOrderId=t.orderId;
   const oldAmount=t.amount;
-  const diff=newAmount-oldAmount; // musbat=ko'paydi, manfiy=kamaydi
+  const diff=newAmount-oldAmount;
 
   // Tranzaksiyani yangilash
+  const linkedOrder=newOrderId?DB.get('orders').find(o=>o.id==newOrderId):null;
   t.amount=newAmount;
-  t.desc='💸 '+desc+(t.orderId?(' ('+DB.get('orders').find(o=>o.id==t.orderId)?.num+')'):'');
+  t.orderId=newOrderId?parseInt(newOrderId):null;
+  t.desc='💸 '+desc+(linkedOrder?' ('+linkedOrder.num+')':'');
   t.editedAt=now();
   t.editedBy=currentUser.name;
   DB.set('transactions',trs);
@@ -2861,9 +2911,10 @@ function saveEditChiqim(tId){
   DB.setObj('finance',fin);
 
   // Agar buyurtmaga bog'liq bo'lsa — foydani qayta hisoblash
-  if(t.orderId){
+  const recalcOrderId = newOrderId||oldOrderId;
+  if(recalcOrderId){
     const orders=DB.get('orders');
-    const o=orders.find(x=>x.id==t.orderId);
+    const o=orders.find(x=>x.id==recalcOrderId);
     if(o&&o.isPaid){
       const allTrs=DB.get('transactions');
       const newTotalExp=allTrs.filter(x=>x.orderId==o.id&&x.type==='expense')
