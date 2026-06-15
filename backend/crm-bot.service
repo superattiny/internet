@@ -1,0 +1,49 @@
+# ================================================================
+#  TV CRM — Telegram Bot + WebSocket Node.js xizmati
+#
+#  O'rnatish:
+#    sudo cp crm-bot.service /etc/systemd/system/
+#    sudo systemctl daemon-reload
+#    sudo systemctl enable crm-bot
+#    sudo systemctl start crm-bot
+#
+#  Holat tekshirish:
+#    sudo systemctl status crm-bot
+#    sudo journalctl -u crm-bot -f
+# ================================================================
+
+[Unit]
+Description=TV CRM Telegram Bot + WebSocket Server
+After=network.target
+
+[Service]
+Type=exec
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/crm/backend
+
+# Node.js server ishga tushirish
+ExecStart=/usr/bin/node server.js
+
+# Muhit o'zgaruvchilari
+EnvironmentFile=/var/www/crm/backend/.env
+
+# Avtomatik qayta ishga tushirish
+Restart=always
+RestartSec=5
+
+# Xotira chegarasi
+MemoryMax=256M
+CPUQuota=40%
+
+# Xavfsizlik
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Log
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=crm-bot
+
+[Install]
+WantedBy=multi-user.target

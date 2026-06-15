@@ -1,0 +1,63 @@
+name: 🚀 Deploy to Server
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # Qo'lda ishga tushirish
+
+jobs:
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Kodni yuklab olish ─────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── 2. Serverga SSH orqali ulanish va deploy ──────────────
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host:     ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key:      ${{ secrets.SERVER_SSH_KEY }}
+          port:     ${{ secrets.SERVER_PORT || 22 }}
+          script: |
+            set -e
+            echo "🚀 Deploy boshlandi..."
+
+            # ── Kodni yangilash ─────────────────────────────────
+            cd /var/www/crm
+            git pull origin main
+            echo "✅ Kod yangilandi"
+
+            # ── HTML CRM faylni ko'chirish ─────────────────────
+            cp CRM_Tizimi.html /var/www/html/crm/CRM_Tizimi.html
+            cp index.html      /var/www/html/crm/index.html
+            echo "✅ HTML fayl yangilandi"
+
+            # ── Python paketlarini yangilash ───────────────────
+            cd /var/www/crm/backend
+            ./venv/bin/pip install -r requirements.txt -q
+            echo "✅ Python paketlari yangilandi"
+
+            # ── Node.js paketlarini yangilash ──────────────────
+            npm install --production --silent
+            echo "✅ Node.js paketlari yangilandi"
+
+            # ── Xizmatlarni qayta ishga tushirish ──────────────
+            sudo systemctl restart crm-api
+            sudo systemctl restart crm-bot
+            echo "✅ Xizmatlar qayta ishga tushirildi"
+
+            echo "🎉 Deploy muvaffaqiyatli tugadi!"
+
+      # ── 3. Muvaffaqiyat xabari ───────────────────────────────
+      - name: Notify success
+        if: success()
+        run: echo "✅ Deploy muvaffaqiyatli!"
+
+      - name: Notify failure
+        if: failure()
+        run: echo "❌ Deploy xatosi yuz berdi!"
