@@ -23,6 +23,8 @@ ENV/
 # --- Muhit o'zgaruvchilari (MAXFIY!) ---
 .env
 !.env.example
+config.js
+!config.example.js
 
 # --- Ma'lumotlar bazasi fayllari ---
 *.db

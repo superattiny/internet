@@ -1,10 +1,11 @@
 const ws    = require('ws');
 const http  = require('http');
 const https = require('https');
+const cfg   = require('./config');
 
 // ── SOZLAMALAR ──────────────────────────────────────────────────
-const TELEGRAM_TOKEN = 'YOUR_TELEGRAM_TOKEN';
-const GEMINI_KEY     = 'YOUR_GEMINI_KEY';
+const TELEGRAM_TOKEN = cfg.TELEGRAM_TOKEN;
+const GEMINI_KEY     = cfg.GEMINI_KEY;
 
 const SYSTEM_PROMPT = `Sen "TV Ta'mirlash Ustaxonasi" uchun aqlli yordamchi botsan.
 Vazifang: mijozlar savollariga qisqa, aniq, do'stona javob berish.
