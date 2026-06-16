@@ -2066,16 +2066,25 @@ function renderOrdersTable(){
       <td><span class="badge ${STATUS_CLASS[o.status]}">${STATUS_ICON[o.status]} ${STATUS_LABEL[o.status]}</span></td>
       <td><span class="badge ${dl.cls||'b-new'}">${dl.label}</span></td>
       <td style="font-size:12px">
-        ${o.isPaid?`<span class="green-text money" style="font-size:13px">${fmtMoney(o.finalPrice)}</span>`:
-          o.narxKeyinroq&&!o.estimatedPrice?`
-            <button onclick="event.stopPropagation();openNarxBelgilash(${o.id})"
-              id="narx_btn_${o.id}"
-              style="padding:4px 10px;background:rgba(245,158,11,.15);
-              border:1.5px solid rgba(245,158,11,.5);border-radius:8px;
-              color:var(--yellow);font-size:11px;font-weight:700;cursor:pointer">
-              ⏳ ${_narxCountdown(o.narxVaqt)}
-            </button>`:
-          o.estimatedPrice?`<span style="color:var(--text2)">~${fmtMoney(o.estimatedPrice)}</span>`:'—'}
+        ${o.isPaid
+          ?`<span class="green-text money">${fmtMoney(o.finalPrice)}</span>`
+          :o.narxKeyinroq&&!o.estimatedPrice
+            ?`<button onclick="event.stopPropagation();openNarxBelgilash(${o.id})"
+               style="padding:4px 10px;background:rgba(245,158,11,.15);
+               border:1.5px solid rgba(245,158,11,.5);border-radius:8px;
+               color:var(--yellow);font-size:11px;font-weight:700;cursor:pointer">
+               ⏳ ${_narxCountdown(o.narxVaqt)}
+             </button>`
+          :o.estimatedPrice
+            ?`<span style="color:var(--text2);cursor:pointer" onclick="event.stopPropagation();openNarxBelgilash(${o.id})" title="Narxni o'zgartirish">
+               ~${fmtMoney(o.estimatedPrice)} ✏️
+             </span>`
+            :`<button onclick="event.stopPropagation();openNarxBelgilash(${o.id})"
+               style="padding:4px 10px;background:rgba(124,58,237,.15);
+               border:1.5px solid rgba(124,58,237,.4);border-radius:8px;
+               color:var(--purple2);font-size:11px;font-weight:700;cursor:pointer">
+               💰 Narx belgilash
+             </button>`}
       </td>
       <td style="font-size:12px">${o.masterName||'<span style="color:var(--text2)">—</span>'}</td>
       <td onclick="event.stopPropagation()">
