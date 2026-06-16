@@ -2417,6 +2417,107 @@ function toggleNarxKeyinroqCheck(checked){
     if(checked)inp.value='';
   }
   document.getElementById('narxError').style.display='none';
+
+  // Belgilanganda — vaqt tanlash oynasi ochilsin
+  if(checked) openNarxVaqtModal();
+}
+
+function openNarxVaqtModal(){
+  const min = new Date(Date.now() + 60000).toISOString().slice(0,16);
+  openModal('modalNarxVaqt',`
+    <div class="modal-header">
+      <div class="modal-title">⏳ Narx qachon aytiladi?</div>
+      <button class="modal-close" onclick="closeModal('modalNarxVaqt');
+        document.getElementById('narxKeyinroq').checked=false;
+        toggleNarxKeyinroqCheck(false)">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--text2);font-size:13px;margin-bottom:16px">
+        Narx aniqlanib, mijozga aytilishi rejalashtirilgan kun va vaqtni tanlang.
+      </p>
+
+      <!-- Tez tugmalar -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px">
+        ${[[30,'30 daqiqa','🕐'],[60,'1 soat','🕑'],[120,'2 soat','🕒'],
+           [180,'3 soat','🕓'],[1440,'Ertaga','📅'],[2880,'2 kun','📆']]
+          .map(([m,l,i])=>`
+          <button onclick="setNarxVaqt(${m})"
+            style="padding:11px 6px;border-radius:10px;border:2px solid var(--border);
+            background:var(--card2);color:var(--text2);font-size:12.5px;
+            font-weight:700;cursor:pointer;text-align:center"
+            onmouseover="this.style.borderColor='var(--yellow)';this.style.color='var(--yellow)'"
+            onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
+            <div style="font-size:18px;margin-bottom:2px">${i}</div>${l}
+          </button>`).join('')}
+      </div>
+
+      <div class="form-group">
+        <label style="font-weight:700">
+          📅 Aniq kun va vaqt <span style="color:var(--red)">*</span>
+        </label>
+        <input type="datetime-local" id="narxVaqtDt" min="${min}"
+          onchange="updateNarxVaqtPreview()"
+          style="width:100%;padding:12px;border:2px solid var(--yellow);
+          border-radius:10px;background:var(--card2);color:var(--text);
+          font-size:15px;outline:none;font-family:inherit">
+      </div>
+
+      <div id="narxVaqtPreview" style="display:none;margin-top:8px;padding:10px 14px;
+        background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);
+        border-radius:9px;font-size:13px;color:var(--yellow)"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalNarxVaqt');
+        document.getElementById('narxKeyinroq').checked=false;
+        toggleNarxKeyinroqCheck(false)">Bekor</button>
+      <button onclick="saveNarxVaqt()" class="btn btn-yellow" style="border:none">
+        ✅ Saqlash
+      </button>
+    </div>
+  `,'modal-sm');
+}
+
+function setNarxVaqt(min){
+  const d=new Date();
+  d.setMinutes(d.getMinutes()+min);
+  const inp=document.getElementById('narxVaqtDt');
+  if(inp){ inp.value=d.toISOString().slice(0,16); updateNarxVaqtPreview(); }
+}
+
+function updateNarxVaqtPreview(){
+  const val=document.getElementById('narxVaqtDt')?.value;
+  const el=document.getElementById('narxVaqtPreview');
+  if(!val||!el){ if(el)el.style.display='none'; return; }
+  const diff=(new Date(val)-new Date())/60000;
+  if(diff<=0){ el.style.display='block'; el.textContent="❌ O'tgan vaqt!"; el.style.color='var(--red)'; return; }
+  let label=diff<60?`${Math.round(diff)} daqiqa`:diff<1440?`${Math.round(diff/60)} soat`:`${Math.round(diff/1440)} kun`;
+  el.style.display='block';
+  el.style.color='var(--yellow)';
+  el.textContent=`⏳ ${fmtDate(val)} — ${label}dan keyin`;
+}
+
+function saveNarxVaqt(){
+  const val=document.getElementById('narxVaqtDt')?.value;
+  if(!val){ toast('Kun va vaqt tanlash majburiy!','error'); return; }
+  if(new Date(val)<=new Date()){ toast("O'tgan vaqt tanlanmaydi!",'error'); return; }
+  // Vaqtni yashirin maydonga saqlaymiz
+  let hidden=document.getElementById('narxVaqtHidden');
+  if(!hidden){
+    hidden=document.createElement('input');
+    hidden.type='hidden'; hidden.id='narxVaqtHidden';
+    document.getElementById('modalNewOrder')?.appendChild(hidden);
+  }
+  hidden.value=val;
+  closeModal('modalNarxVaqt');
+  // Label yangilash
+  const lbl=document.getElementById('narxLabel');
+  if(lbl){
+    const diff=(new Date(val)-new Date())/60000;
+    let t=diff<60?`${Math.round(diff)}d`:diff<1440?`${Math.round(diff/60)}s`:`${Math.round(diff/1440)}kun`;
+    lbl.textContent=` — ${t}dan keyin aytiladi`;
+    lbl.style.color='var(--yellow)';
+  }
+  toast(`⏳ ${fmtDate(val)} da narx aytiladi`,'info');
 }
 
 // Dropdown ni yopish (tashqariga bosganda)
