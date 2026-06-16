@@ -807,7 +807,7 @@ function renderOrdersTable(){
   </tr></thead><tbody>
   ${orders.map(o=>{
     const dl=getDeadlineInfo(o.deadline);
-    return`<tr style="cursor:pointer${dl.overdue?';background:rgba(239,68,68,.04)':''}" onclick="openOrderDetail(${o.id})">
+    return`<tr style="cursor:pointer${dl.overdue?';animation:row-flash 1s ease infinite':''}" onclick="openOrderDetail(${o.id})">
       <td><span style="font-family:monospace;font-weight:700;color:var(--purple2);font-size:13px">${o.num}</span>
         <div style="font-size:10px;color:var(--text2)">${fmtDateOnly(o.createdAt)}</div></td>
       <td><div style="font-weight:600;font-size:13px">${o.clientName}</div>
