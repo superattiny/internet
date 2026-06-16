@@ -58,7 +58,7 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);mi
 .btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border)}
 .btn-ghost:hover{background:var(--card2);color:var(--text)}
 /* MAIN LAYOUT */
-#app{display:none;min-height:100vh}
+#app{display:none;min-height:100vh;width:100%}
 .sidebar{width:220px;background:var(--sidebar);border-right:1px solid var(--border);
   position:fixed;top:0;left:0;height:100vh;display:flex;flex-direction:column;z-index:10}
 .sidebar-logo{padding:20px 16px 16px;border-bottom:1px solid var(--border)}
@@ -87,14 +87,14 @@ body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);mi
 .user-name{font-size:13px;font-weight:600;color:var(--text)}
 .user-role{font-size:11px;color:var(--text2)}
 /* MAIN CONTENT */
-.main-content{margin-left:220px;min-height:100vh;display:flex;flex-direction:column}
+.main-content{margin-left:220px;min-height:100vh;display:flex;flex-direction:column;flex:1;min-width:0}
 .topbar{height:58px;background:var(--sidebar);border-bottom:1px solid var(--border);
   display:flex;align-items:center;justify-content:space-between;padding:0 24px;
   position:sticky;top:0;z-index:5}
 .topbar-left{display:flex;align-items:center;gap:12px}
 .topbar-title{font-size:17px;font-weight:700}
 .topbar-right{display:flex;align-items:center;gap:8px}
-.page-body{padding:24px;flex:1}
+.page-body{padding:24px;flex:1;width:100%;box-sizing:border-box}
 /* CARDS */
 .card{background:var(--card);border:1px solid var(--border);border-radius:14px}
 .card-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 0}
@@ -138,6 +138,7 @@ tbody tr:last-child td{border-bottom:none}
 .b-overdue{background:rgba(239,68,68,.2);color:#fca5a5;border:1px solid rgba(239,68,68,.5);
   animation:pulse-red 2s ease infinite}
 @keyframes pulse-red{0%,100%{box-shadow:none}50%{box-shadow:0 0 8px rgba(239,68,68,.4)}}
+@keyframes row-flash{0%,100%{background:rgba(239,68,68,.04)}50%{background:rgba(239,68,68,.2)}}
 .b-admin{background:rgba(124,58,237,.15);color:var(--purple2);border:1px solid rgba(124,58,237,.3)}
 .b-operator{background:rgba(59,130,246,.15);color:var(--blue);border:1px solid rgba(59,130,246,.3)}
 .b-master{background:rgba(245,158,11,.15);color:var(--yellow);border:1px solid rgba(245,158,11,.3)}
@@ -806,7 +807,7 @@ function renderOrdersTable(){
   </tr></thead><tbody>
   ${orders.map(o=>{
     const dl=getDeadlineInfo(o.deadline);
-    return`<tr style="cursor:pointer${dl.overdue?';background:rgba(239,68,68,.04)':''}" onclick="openOrderDetail(${o.id})">
+    return`<tr style="cursor:pointer${dl.overdue?';animation:row-flash 1s ease infinite':''}" onclick="openOrderDetail(${o.id})">
       <td><span style="font-family:monospace;font-weight:700;color:var(--purple2);font-size:13px">${o.num}</span>
         <div style="font-size:10px;color:var(--text2)">${fmtDateOnly(o.createdAt)}</div></td>
       <td><div style="font-weight:600;font-size:13px">${o.clientName}</div>
@@ -847,6 +848,12 @@ function renderOrdersTable(){
             <button class="btn btn-sm btn-blue" onclick="openStatusModal(${o.id})">🔄</button>`:
 
           !['delivered','cancelled'].includes(o.status)?`
+            ${(o.narxKeyinroq||!o.estimatedPrice)&&o.status!=='done'?`
+            <button class="btn btn-sm" onclick="openNarxBelgilash(${o.id})"
+              style="background:rgba(245,158,11,.2);color:var(--yellow);
+              border:1.5px solid rgba(245,158,11,.5);font-weight:700;font-size:11px">
+              💰 Narx belgilash
+            </button>`:''}
             <button class="btn btn-sm"
               onclick="openYakunlashModal(${o.id})"
               style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;font-weight:600;font-size:11px;padding:5px 10px">
@@ -1157,12 +1164,102 @@ function toggleNarxKeyinroq(val){
 
 function toggleNarxKeyinroqCheck(checked){
   const inp=document.getElementById('oEstPrice');
-  if(inp){
-    inp.disabled=checked;
-    inp.style.opacity=checked?'0.5':'1';
-    if(checked)inp.value='';
-  }
+  if(inp){inp.disabled=checked;inp.style.opacity=checked?'0.5':'1';if(checked)inp.value='';}
   document.getElementById('narxError').style.display='none';
+  if(checked) openNarxVaqtModal();
+}
+
+function openNarxVaqtModal(){
+  const min=new Date(Date.now()+60000).toISOString().slice(0,16);
+  openModal('modalNarxVaqt',`
+    <div class="modal-header">
+      <div class="modal-title">⏳ Narx qachon aytiladi?</div>
+      <button class="modal-close" onclick="closeModal('modalNarxVaqt');document.getElementById('narxKeyinroq').checked=false;toggleNarxKeyinroqCheck(false)">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
+        ${[[30,'30 daqiqa','🕐'],[60,'1 soat','🕑'],[120,'2 soat','🕒'],[180,'3 soat','🕓'],[1440,'Ertaga','📅'],[2880,'2 kun','📆']]
+          .map(([m,l,i])=>`<button onclick="setNVaqt(${m})"
+            style="padding:10px 6px;border-radius:9px;border:2px solid var(--border);
+            background:var(--card2);color:var(--text2);font-size:12px;font-weight:700;cursor:pointer;text-align:center"
+            onmouseover="this.style.borderColor='var(--yellow)';this.style.color='var(--yellow)'"
+            onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
+            <div style="font-size:17px;margin-bottom:2px">${i}</div>${l}</button>`).join('')}
+      </div>
+      <div class="form-group">
+        <label style="font-weight:700">📅 Aniq kun va vaqt <span style="color:var(--red)">*</span></label>
+        <input type="datetime-local" id="nVaqtDt" min="${min}"
+          onchange="document.getElementById('nVaqtPrev').textContent=this.value?new Date(this.value).toLocaleString('uz-UZ'):''"
+          style="width:100%;padding:12px;border:2px solid var(--yellow);border-radius:10px;
+          background:var(--card2);color:var(--yellow);font-size:15px;outline:none;font-family:inherit">
+        <div id="nVaqtPrev" style="margin-top:6px;font-size:12px;color:var(--yellow)"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalNarxVaqt');document.getElementById('narxKeyinroq').checked=false;toggleNarxKeyinroqCheck(false)">Bekor</button>
+      <button onclick="saveNVaqt()" style="padding:10px 20px;background:var(--yellow);border:none;border-radius:10px;color:#0f172a;font-weight:800;cursor:pointer">✅ Saqlash</button>
+    </div>
+  `,'modal-sm');
+}
+
+function setNVaqt(m){
+  const d=new Date();d.setMinutes(d.getMinutes()+m);
+  const inp=document.getElementById('nVaqtDt');
+  if(inp){inp.value=d.toISOString().slice(0,16);document.getElementById('nVaqtPrev').textContent=d.toLocaleString('uz-UZ');}
+}
+
+function saveNVaqt(){
+  const val=document.getElementById('nVaqtDt')?.value;
+  if(!val||new Date(val)<=new Date()){toast('Kelajakdagi vaqt tanlang!','error');return;}
+  window._narxVaqt=val;
+  closeModal('modalNarxVaqt');
+  const lbl=document.getElementById('narxLabel');
+  if(lbl){lbl.textContent=' — '+new Date(val).toLocaleString('uz-UZ');lbl.style.color='var(--yellow)';}
+  toast('⏳ Vaqt belgilandi','info');
+}
+
+function openNarxBelgilash(orderId){
+  const o=DB.get('orders').find(x=>x.id===orderId);
+  if(!o)return;
+  openModal('modalNarxBelg',`
+    <div class="modal-header">
+      <div class="modal-title">💰 Narx belgilash</div>
+      <button class="modal-close" onclick="closeModal('modalNarxBelg')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:12px">${o.clientName} · ${[o.tvBrand,o.tvModel].filter(Boolean).join(' ')}</div>
+      <div class="form-group">
+        <label style="font-weight:700">Narx (so'm)</label>
+        <input type="number" id="narxBelgSum" placeholder="150000" min="1"
+          onkeydown="if(event.key==='Enter')saveNarxBelg(${o.id})"
+          style="width:100%;padding:14px;border:2px solid var(--yellow);border-radius:10px;
+          background:var(--card2);color:var(--yellow);font-size:26px;font-weight:900;
+          outline:none;font-family:monospace;text-align:center">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalNarxBelg')">Bekor</button>
+      <button onclick="saveNarxBelg(${o.id})" style="padding:10px 24px;background:var(--yellow);border:none;border-radius:10px;color:#0f172a;font-weight:800;cursor:pointer">💾 Saqlash</button>
+    </div>
+  `,'modal-sm');
+  setTimeout(()=>document.getElementById('narxBelgSum')?.focus(),100);
+}
+
+function saveNarxBelg(orderId){
+  const sum=parseFloat(document.getElementById('narxBelgSum')?.value);
+  if(!sum||sum<=0){toast('Narx kiritilishi shart!','error');return;}
+  const orders=DB.get('orders');
+  const o=orders.find(x=>x.id===orderId);
+  if(!o)return;
+  o.estimatedPrice=sum;
+  o.narxKeyinroq=false;
+  o.updatedAt=today();
+  o.history=o.history||[];
+  o.history.push({status:o.status,comment:`💰 Narx belgilandi: ${fmtMoney(sum)}`,by:currentUser.name,date:now()});
+  DB.set('orders',orders);
+  closeModal('modalNarxBelg');
+  toast(`✅ Narx belgilandi: ${fmtMoney(sum)}`);
+  refreshAll();
 }
 
 // Dropdown ni yopish (tashqariga bosganda)
