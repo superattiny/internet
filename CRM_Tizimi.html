@@ -138,7 +138,6 @@ tbody tr:last-child td{border-bottom:none}
 .b-overdue{background:rgba(239,68,68,.2);color:#fca5a5;border:1px solid rgba(239,68,68,.5);
   animation:pulse-red 2s ease infinite}
 @keyframes pulse-red{0%,100%{box-shadow:none}50%{box-shadow:0 0 8px rgba(239,68,68,.4)}}
-@keyframes row-flash{0%,100%{background:rgba(239,68,68,.04)}50%{background:rgba(239,68,68,.18)}}
 .b-admin{background:rgba(124,58,237,.15);color:var(--purple2);border:1px solid rgba(124,58,237,.3)}
 .b-operator{background:rgba(59,130,246,.15);color:var(--blue);border:1px solid rgba(59,130,246,.3)}
 .b-master{background:rgba(245,158,11,.15);color:var(--yellow);border:1px solid rgba(245,158,11,.3)}
@@ -807,7 +806,7 @@ function renderOrdersTable(){
   </tr></thead><tbody>
   ${orders.map(o=>{
     const dl=getDeadlineInfo(o.deadline);
-    return`<tr style="cursor:pointer${dl.overdue?';animation:row-flash 1s ease infinite':''}" onclick="openOrderDetail(${o.id})">
+    return`<tr style="cursor:pointer${dl.overdue?';background:rgba(239,68,68,.04)':''}" onclick="openOrderDetail(${o.id})">
       <td><span style="font-family:monospace;font-weight:700;color:var(--purple2);font-size:13px">${o.num}</span>
         <div style="font-size:10px;color:var(--text2)">${fmtDateOnly(o.createdAt)}</div></td>
       <td><div style="font-weight:600;font-size:13px">${o.clientName}</div>
