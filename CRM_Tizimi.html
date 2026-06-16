@@ -138,6 +138,7 @@ tbody tr:last-child td{border-bottom:none}
 .b-overdue{background:rgba(239,68,68,.2);color:#fca5a5;border:1px solid rgba(239,68,68,.5);
   animation:pulse-red 2s ease infinite}
 @keyframes pulse-red{0%,100%{box-shadow:none}50%{box-shadow:0 0 8px rgba(239,68,68,.4)}}
+@keyframes narx-flash{0%,100%{background:transparent}50%{background:rgba(245,158,11,.15)}}
 .b-admin{background:rgba(124,58,237,.15);color:var(--purple2);border:1px solid rgba(124,58,237,.3)}
 .b-operator{background:rgba(59,130,246,.15);color:var(--blue);border:1px solid rgba(59,130,246,.3)}
 .b-master{background:rgba(245,158,11,.15);color:var(--yellow);border:1px solid rgba(245,158,11,.3)}
@@ -2052,7 +2053,7 @@ function renderOrdersTable(){
   </tr></thead><tbody>
   ${orders.map(o=>{
     const dl=getDeadlineInfo(o.deadline);
-    return`<tr style="cursor:pointer${dl.overdue?';background:rgba(239,68,68,.04)':''}" onclick="openOrderDetail(${o.id})">
+    const narxDue=o.narxKeyinroq&&!o.estimatedPrice&&o.narxVaqt&&new Date(o.narxVaqt)<=new Date();return`<tr style="cursor:pointer${dl.overdue?';background:rgba(239,68,68,.04)':''}${narxDue?';animation:narx-flash 1.2s ease infinite':''}" onclick="openOrderDetail(${o.id})">
       <td><span style="font-family:monospace;font-weight:700;color:var(--purple2);font-size:13px">${o.num}</span>
         <div style="font-size:10px;color:var(--text2)">${fmtDateOnly(o.createdAt)}</div></td>
       <td><div style="font-weight:600;font-size:13px">${o.clientName}</div>
@@ -2066,12 +2067,13 @@ function renderOrdersTable(){
       <td><span class="badge ${dl.cls||'b-new'}">${dl.label}</span></td>
       <td style="font-size:12px">
         ${o.isPaid?`<span class="green-text money" style="font-size:13px">${fmtMoney(o.finalPrice)}</span>`:
-          o.narxKeyinroq&&!o.estimatedPrice?
-            `<button onclick="event.stopPropagation();openNarxBelgilash(${o.id})"
+          o.narxKeyinroq&&!o.estimatedPrice?`
+            <button onclick="event.stopPropagation();openNarxBelgilash(${o.id})"
+              id="narx_btn_${o.id}"
               style="padding:4px 10px;background:rgba(245,158,11,.15);
               border:1.5px solid rgba(245,158,11,.5);border-radius:8px;
               color:var(--yellow);font-size:11px;font-weight:700;cursor:pointer">
-              💰 Narx belgilash
+              ⏳ ${_narxCountdown(o.narxVaqt)}
             </button>`:
           o.estimatedPrice?`<span style="color:var(--text2)">~${fmtMoney(o.estimatedPrice)}</span>`:'—'}
       </td>
@@ -2841,6 +2843,15 @@ function openStatusModal(id){
       ${next.length>0?`<button class="btn btn-primary" style="width:auto" onclick="saveStatus(${o.id})">✅ Tasdiqlash</button>`:''}
     </div>
   `,'modal-md');
+}
+
+function _narxCountdown(vaqt){
+  if(!vaqt) return '💰 Narx belgilash';
+  const diff=(new Date(vaqt)-new Date())/60000;
+  if(diff<=0) return '💰 Vaqt keldi!';
+  if(diff<60) return Math.round(diff)+"d qoldi";
+  if(diff<1440) return Math.round(diff/60)+"s qoldi";
+  return Math.round(diff/1440)+"k qoldi";
 }
 
 function getCountdownLabel(dt){
