@@ -2117,8 +2117,8 @@ function renderOrdersTable(){
               style="background:rgba(245,158,11,.2);color:var(--yellow);
               border:1.5px solid rgba(245,158,11,.5);font-weight:700;font-size:11px">
               💰 Narx belgilash
-            </button>`:''}
-            ${o.status==='new'||o.status==='accepted'?`
+            </button>
+            `:o.status==='new'||o.status==='accepted'?`
             <button class="btn btn-sm" onclick="openKeyinroqModal(${o.id})"
               style="background:${o.scheduledAt?'rgba(6,182,212,.2)':'rgba(245,158,11,.15)'};
               color:${o.scheduledAt?'var(--cyan)':'var(--yellow)'};
