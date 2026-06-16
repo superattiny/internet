@@ -2111,6 +2111,13 @@ function renderOrdersTable(){
             <button class="btn btn-sm btn-blue" onclick="openStatusModal(${o.id})">🔄</button>`:
 
           !['delivered','cancelled'].includes(o.status)?`
+            ${o.narxKeyinroq&&!o.estimatedPrice?`
+            <button class="btn btn-sm"
+              onclick="openNarxBelgilash(${o.id})"
+              style="background:rgba(245,158,11,.2);color:var(--yellow);
+              border:1.5px solid rgba(245,158,11,.5);font-weight:700;font-size:11px">
+              💰 Narx belgilash
+            </button>`:''}
             ${o.status==='new'||o.status==='accepted'?`
             <button class="btn btn-sm" onclick="openKeyinroqModal(${o.id})"
               style="background:${o.scheduledAt?'rgba(6,182,212,.2)':'rgba(245,158,11,.15)'};
