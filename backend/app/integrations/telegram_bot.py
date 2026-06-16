@@ -65,14 +65,19 @@ async def notify_admin_new_order(order) -> None:
     if not settings.telegram_chat_id:
         return
 
+    client      = getattr(order, 'client', None)
+    client_name = client.full_name if client else "Noma'lum"
+    client_phone= client.phone if client else "—"
+    deadline_str= order.deadline.strftime('%d.%m.%Y %H:%M') if order.deadline else "—"
+
     text = (
         f"🆕 <b>Yangi Zakaz!</b>\n\n"
         f"📋 Raqam: <code>{order.order_number}</code>\n"
-        f"👤 Mijoz: {order.client.full_name if hasattr(order, 'client') and order.client else 'Noma\'lum'}\n"
-        f"📱 Telefon: {order.client.phone if hasattr(order, 'client') and order.client else '—'}\n"
+        f"👤 Mijoz: {client_name}\n"
+        f"📱 Telefon: {client_phone}\n"
         f"📺 Texnika: {order.tv_brand or ''} {order.tv_model or ''}\n"
         f"🔧 Muammo: {order.problem_description[:100]}...\n"
-        f"⏰ Deadline: {order.deadline.strftime('%d.%m.%Y %H:%M') if order.deadline else '—'}\n"
+        f"⏰ Deadline: {deadline_str}\n"
         f"💰 Taxminiy narx: {order.estimated_price:,.0f} so'm\n"
     )
 
@@ -115,13 +120,17 @@ async def notify_admin_status_changed(order, old_status: str, new_status: str, c
     old_label = STATUS_UZ.get(old_status, old_status)
     new_label = STATUS_UZ.get(new_status, new_status)
 
+    client      = getattr(order, 'client', None)
+    client_name = client.full_name if client else "—"
+    now_str     = datetime.now().strftime('%d.%m.%Y %H:%M')
+
     text = (
         f"🔄 <b>Status o'zgardi</b>\n\n"
         f"📋 Zakaz: <code>{order.order_number}</code>\n"
-        f"👤 Mijoz: {order.client.full_name if hasattr(order, 'client') and order.client else '—'}\n"
+        f"👤 Mijoz: {client_name}\n"
         f"{old_emoji} {old_label} → {new_emoji} {new_label}\n"
         f"👨‍💼 Kim o'zgartirdi: {changed_by}\n"
-        f"🕐 Vaqt: {datetime.now().strftime('%d.%m.%Y %H:%M')}\n"
+        f"🕐 Vaqt: {now_str}\n"
     )
 
     await send_message(settings.telegram_chat_id, text)
@@ -140,13 +149,17 @@ async def notify_admin_payment(order, amount: float, payment_method: str) -> Non
         "transfer": "🏦 O'tkazma",
     }
 
+    client      = getattr(order, 'client', None)
+    client_name = client.full_name if client else "—"
+    now_str     = datetime.now().strftime('%d.%m.%Y %H:%M')
+
     text = (
         f"💳 <b>To'lov qabul qilindi!</b>\n\n"
         f"📋 Zakaz: <code>{order.order_number}</code>\n"
-        f"👤 Mijoz: {order.client.full_name if hasattr(order, 'client') and order.client else '—'}\n"
+        f"👤 Mijoz: {client_name}\n"
         f"💰 Summa: <b>{amount:,.0f} so'm</b>\n"
         f"💳 Usul: {METHOD_LABEL.get(payment_method, payment_method)}\n"
-        f"🕐 Vaqt: {datetime.now().strftime('%d.%m.%Y %H:%M')}\n"
+        f"🕐 Vaqt: {now_str}\n"
     )
 
     await send_message(settings.telegram_chat_id, text)
@@ -163,7 +176,9 @@ async def notify_overdue_orders(overdue_orders: list) -> None:
     text = f"⚠️ <b>Muddati o'tgan zakazlar: {len(overdue_orders)} ta</b>\n\n"
 
     for o in overdue_orders[:10]:
-        text += f"❌ <code>{o.order_number}</code> — {o.client.full_name if hasattr(o, 'client') and o.client else '—'}\n"
+        client      = getattr(o, 'client', None)
+        client_name = client.full_name if client else "—"
+        text += f"❌ <code>{o.order_number}</code> — {client_name}\n"
 
     if len(overdue_orders) > 10:
         text += f"\n...va yana {len(overdue_orders) - 10} ta\n"

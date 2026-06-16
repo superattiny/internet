@@ -28,16 +28,21 @@ _DB_URL = _build_db_url(settings.database_url)
 _IS_SQLITE = _DB_URL.startswith("sqlite")
 
 # ── Engine ─────────────────────────────────────────────────────
-engine = create_async_engine(
-    url=_DB_URL,
-    echo=settings.debug,
-    # SQLite uchun maxsus sozlama
-    connect_args={"check_same_thread": False} if _IS_SQLITE else {},
-    # PostgreSQL uchun connection pool
-    pool_size=5          if not _IS_SQLITE else None,
-    max_overflow=10      if not _IS_SQLITE else None,
-    pool_pre_ping=True   if not _IS_SQLITE else False,
-)
+_engine_kwargs: dict = {
+    "url":   _DB_URL,
+    "echo":  settings.debug,
+}
+
+if _IS_SQLITE:
+    # SQLite: faqat check_same_thread kerak
+    _engine_kwargs["connect_args"] = {"check_same_thread": False}
+else:
+    # PostgreSQL: connection pool sozlamalari
+    _engine_kwargs["pool_size"]    = 5
+    _engine_kwargs["max_overflow"] = 10
+    _engine_kwargs["pool_pre_ping"] = True
+
+engine = create_async_engine(**_engine_kwargs)
 
 # ── Session Factory ────────────────────────────────────────────
 AsyncSessionLocal = async_sessionmaker(
