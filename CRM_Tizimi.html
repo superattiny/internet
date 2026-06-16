@@ -2066,6 +2066,13 @@ function renderOrdersTable(){
       <td><span class="badge ${dl.cls||'b-new'}">${dl.label}</span></td>
       <td style="font-size:12px">
         ${o.isPaid?`<span class="green-text money" style="font-size:13px">${fmtMoney(o.finalPrice)}</span>`:
+          o.narxKeyinroq&&!o.estimatedPrice?
+            `<button onclick="event.stopPropagation();openNarxBelgilash(${o.id})"
+              style="padding:4px 10px;background:rgba(245,158,11,.15);
+              border:1.5px solid rgba(245,158,11,.5);border-radius:8px;
+              color:var(--yellow);font-size:11px;font-weight:700;cursor:pointer">
+              💰 Narx belgilash
+            </button>`:
           o.estimatedPrice?`<span style="color:var(--text2)">~${fmtMoney(o.estimatedPrice)}</span>`:'—'}
       </td>
       <td style="font-size:12px">${o.masterName||'<span style="color:var(--text2)">—</span>'}</td>
@@ -2635,6 +2642,7 @@ function saveNewOrder(){
     masterIds:  masterIds,
     estimatedPrice: narxKeyinroq ? 0 : (estPrice || 0),
     narxKeyinroq:   narxKeyinroq || false,
+    narxVaqt: narxKeyinroq ? (document.getElementById('narxVaqtHidden')?.value||null) : null,
     finalPrice:0,partsCost:0,isPaid:false,payMethod:'',
     deadline,
     createdAt:today(),updatedAt:today(),
@@ -3071,15 +3079,27 @@ function startScheduleTimer(){
   setInterval(()=>{
     const orders=DB.get('orders');
     const now3=new Date();
-    orders.filter(o=>o.scheduledAt&&!['delivered','cancelled'].includes(o.status)).forEach(o=>{
-      const dt=new Date(o.scheduledAt);
-      const diff=dt-now3;
-      // 0 dan -5 daqiqa oralig'ida (yangi o'tgan)
-      if(diff>=-300000&&diff<=0&&!o._notified){
-        o._notified=true;
-        DB.set('orders',orders);
-        // Katta xabar ko'rsat
-        showScheduleAlert(o);
+
+    orders.filter(o=>!['delivered','cancelled'].includes(o.status)).forEach(o=>{
+
+      // 1. scheduledAt — mijoz kelish vaqti
+      if(o.scheduledAt){
+        const diff=new Date(o.scheduledAt)-now3;
+        if(diff>=-300000&&diff<=0&&!o._notified){
+          o._notified=true;
+          DB.set('orders',orders);
+          showScheduleAlert(o);
+        }
+      }
+
+      // 2. narxVaqt — narx aytilish vaqti
+      if(o.narxVaqt && o.narxKeyinroq && !o.estimatedPrice){
+        const diff=new Date(o.narxVaqt)-now3;
+        if(diff>=-300000&&diff<=0&&!o._narxNotified){
+          o._narxNotified=true;
+          DB.set('orders',orders);
+          showNarxAlert(o);
+        }
       }
     });
   },30000);
@@ -3118,8 +3138,89 @@ function showScheduleAlert(o){
       </button>
     </div>`;
   document.body.appendChild(el);
-  // 15 soniyadan keyin o'z-o'zidan yopiladi
   setTimeout(()=>el.remove(),15000);
+}
+
+function showNarxAlert(o){
+  const el=document.createElement('div');
+  el.style.cssText=`position:fixed;top:80px;left:50%;transform:translateX(-50%);
+    background:linear-gradient(135deg,#1c1a0a,#2a2200);
+    border:2px solid var(--yellow);border-radius:16px;padding:20px 28px;
+    z-index:9999;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.5);
+    min-width:320px;animation:slideUp .3s ease`;
+  el.innerHTML=`
+    <div style="font-size:28px;margin-bottom:8px">💰</div>
+    <div style="font-weight:800;font-size:16px;color:var(--yellow);margin-bottom:6px">
+      Narx aytilish vaqti keldi!
+    </div>
+    <div style="font-size:14px;color:var(--text);margin-bottom:4px">
+      <b>${o.num}</b> — ${o.clientName}
+    </div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:16px">
+      ${[o.tvBrand,o.tvModel].filter(Boolean).join(' ')||''}
+    </div>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button onclick="this.closest('div[style]').remove()"
+        style="padding:8px 16px;border-radius:8px;border:1px solid var(--border);
+        background:transparent;color:var(--text2);cursor:pointer">Keyinroq</button>
+      <button onclick="this.closest('div[style]').remove();openNarxBelgilash(${o.id})"
+        style="padding:8px 20px;border-radius:8px;border:none;
+        background:var(--yellow);color:#0f172a;cursor:pointer;font-weight:800">
+        💰 Narx belgilash
+      </button>
+    </div>`;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),20000);
+}
+
+function openNarxBelgilash(orderId){
+  const o=DB.get('orders').find(x=>x.id===orderId);
+  if(!o)return;
+  openModal('modalNarxBelgilash',`
+    <div class="modal-header">
+      <div class="modal-title">💰 Narx belgilash — ${o.num}</div>
+      <button class="modal-close" onclick="closeModal('modalNarxBelgilash')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--card2);padding:11px 14px;border-radius:10px;margin-bottom:16px">
+        <div style="font-weight:700">${o.clientName}</div>
+        <div style="font-size:12px;color:var(--text2)">${[o.tvBrand,o.tvModel].filter(Boolean).join(' ')}</div>
+      </div>
+      <div class="form-group">
+        <label style="font-weight:700">💰 Narx (so'm) <span style="color:var(--red)">*</span></label>
+        <input type="number" id="narxBelgilashSum" placeholder="150000" min="1"
+          style="width:100%;padding:14px;border:2px solid var(--yellow);border-radius:10px;
+          background:var(--card2);color:var(--yellow);font-size:26px;font-weight:900;
+          outline:none;font-family:monospace;text-align:center">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalNarxBelgilash')">Bekor</button>
+      <button onclick="saveNarxBelgilash(${o.id})"
+        style="padding:10px 24px;background:var(--yellow);border:none;
+        border-radius:10px;color:#0f172a;font-weight:800;cursor:pointer;font-size:14px">
+        💾 Saqlash
+      </button>
+    </div>
+  `,'modal-sm');
+}
+
+function saveNarxBelgilash(orderId){
+  const sum=parseFloat(document.getElementById('narxBelgilashSum')?.value);
+  if(!sum||sum<=0){ toast('Narx kiritilishi shart!','error'); return; }
+  const orders=DB.get('orders');
+  const o=orders.find(x=>x.id===orderId);
+  if(!o)return;
+  o.estimatedPrice=sum;
+  o.narxKeyinroq=false;
+  o.narxVaqt=null;
+  o.updatedAt=today();
+  o.history=o.history||[];
+  o.history.push({status:o.status,comment:`💰 Narx belgilandi: ${fmtMoney(sum)}`,by:currentUser.name,date:now()});
+  DB.set('orders',orders);
+  closeModal('modalNarxBelgilash');
+  toast(`✅ Narx belgilandi: ${fmtMoney(sum)}`);
+  refreshAll();
 }
 
 function checkStatusBorder(el){
