@@ -260,6 +260,10 @@ tbody tr:last-child td{border-bottom:none}
         <span class="ni">💰</span><span>Balans</span>
       </div>
       <div class="nav-section">Boshqa</div>
+      <div class="nav-item" onclick="showPage('bot')">
+        <span class="ni">🤖</span><span>Bot / Xabarlar</span>
+        <span class="nav-badge" id="navBotBadge" style="display:none">0</span>
+      </div>
       <div class="nav-item" onclick="showPage('chats')">
         <span class="ni">📞</span><span>Qo'ng'iroqlar</span>
       </div>
@@ -272,6 +276,10 @@ tbody tr:last-child td{border-bottom:none}
       <div class="nav-section">Admin</div>
       <div class="nav-item" onclick="showPage('users')">
         <span class="ni">⚙️</span><span>Foydalanuvchilar</span>
+      </div>
+      <div class="nav-item" onclick="openFullResetModal()"
+        style="color:#ef4444;border-color:rgba(239,68,68,.2);margin-top:4px">
+        <span class="ni">🔄</span><span>TO'LIQ RESET</span>
       </div>
     </nav>
     <div class="sidebar-user">
@@ -331,6 +339,7 @@ tbody tr:last-child td{border-bottom:none}
       <div id="page-archive" style="display:none"></div>
       <div id="page-ustalar" style="display:none"></div>
       <div id="page-users" style="display:none"></div>
+      <div id="page-bot" style="display:none"></div>
     </div>
   </div>
 </div>
@@ -525,6 +534,7 @@ function renderPage(name,extra){
   else if(name==='reminders')renderReminders();
   else if(name==='archive')renderArchive();
   else if(name==='users')renderUsers();
+  else if(name==='bot')renderBot();
 }
 function refreshAll(){
   updateTopbarBalance();
@@ -4563,6 +4573,294 @@ function renderArchive(){
 }
 
 // ================================================================
+// ================================================================
+//  BOT / XABARLAR
+// ================================================================
+let activeBotChat = null;
+
+function renderBot(){
+  const chats = DB.get('bot_chats').slice().reverse();
+  const total = chats.reduce((s,c)=>s+(c.unread||0),0);
+  const badge = document.getElementById('navBotBadge');
+  if(badge){badge.style.display=total>0?'inline':'none';badge.textContent=total;}
+  const page = document.getElementById('page-bot');
+  if(!page) return;
+  page.innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+      <div style="font-size:16px;font-weight:800">🤖 Bot / Xabarlar</div>
+      <div style="display:flex;gap:8px">
+        <button onclick="openTestBotMsgModal()" style="padding:7px 14px;background:rgba(6,182,212,.15);
+          border:1.5px solid rgba(6,182,212,.4);border-radius:9px;color:var(--cyan);
+          font-size:12.5px;font-weight:700;cursor:pointer">🧪 Test xabar</button>
+        <button onclick="_clearBotChats()" style="padding:7px 12px;background:rgba(239,68,68,.1);
+          border:1.5px solid rgba(239,68,68,.3);border-radius:9px;color:var(--red);
+          font-size:12px;cursor:pointer">🗑</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:240px 1fr 220px;gap:0;
+      height:calc(100vh - 158px);border:1px solid var(--border);border-radius:14px;overflow:hidden">
+      <div id="botListPanel" style="background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column">
+        <div style="padding:12px 14px;border-bottom:1px solid var(--border)">
+          <div style="font-size:13px;font-weight:800;color:var(--cyan)">🤖 Suhbatlar</div>
+          <div id="botListCount" style="font-size:10px;color:var(--text2)">${chats.length} ta</div>
+        </div>
+        <div id="botListItems" style="flex:1;overflow-y:auto">
+          ${chats.length===0?`<div style="padding:20px;text-align:center;color:var(--text2)">
+            <div style="font-size:30px;margin-bottom:8px">🤖</div>
+            <div style="font-size:12px">Hali xabar yo'q</div>
+            <button onclick="openTestBotMsgModal()" style="margin-top:12px;padding:7px 14px;
+              background:rgba(6,182,212,.15);border:1.5px solid rgba(6,182,212,.4);
+              border-radius:8px;color:var(--cyan);font-size:11px;font-weight:700;cursor:pointer">
+              🧪 Test xabar</button></div>`:
+          chats.map(c=>`<div onclick="openBotChatX('${c.chatId}')"
+            style="padding:10px 14px;border-bottom:1px solid rgba(45,45,80,.4);cursor:pointer;
+            background:${activeBotChat===c.chatId?'rgba(6,182,212,.12)':'transparent'}">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--blue));
+                  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white">
+                  ${(c.from||'?')[0].toUpperCase()}</div>
+                <div>
+                  <div style="font-weight:700;font-size:12.5px">${c.from||"Noma'lum"}</div>
+                  <div style="font-size:10px;color:var(--cyan)">${c.source==='instagram'?'📸 Instagram':'✈️ Telegram'}</div>
+                </div>
+              </div>
+              ${(c.unread||0)>0?`<span style="background:var(--red);color:white;font-size:10px;
+                font-weight:800;padding:1px 6px;border-radius:8px">${c.unread}</span>`:''}
+            </div>
+            <div style="font-size:11px;color:var(--text2);margin-top:3px;margin-left:38px;
+              overflow:hidden;white-space:nowrap;text-overflow:ellipsis">
+              ${(c.messages||[]).slice(-1)[0]?.text?.slice(0,35)||'...'}
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>
+      <div id="botMsgPanel" style="display:flex;flex-direction:column;background:var(--bg);
+        border-right:1px solid var(--border)">
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;
+          flex-direction:column;gap:10px;color:var(--text2)">
+          <div style="font-size:44px">🤖</div>
+          <div style="font-size:14px;font-weight:600">Suhbat tanlang</div>
+        </div>
+      </div>
+      <div id="botInfoPanel" style="background:var(--sidebar);padding:14px">
+        <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;
+          margin-bottom:12px">Ma'lumot</div>
+        <div style="font-size:12px;color:var(--text2);text-align:center;margin-top:20px">
+          Suhbat tanlang</div>
+      </div>
+    </div>`;
+}
+
+function openBotChatX(chatId){
+  activeBotChat=chatId;
+  const chats=DB.get('bot_chats');
+  const conv=chats.find(c=>c.chatId===chatId);
+  if(conv){conv.unread=0;DB.set('bot_chats',chats);}
+  const panel=document.getElementById('botMsgPanel');
+  if(!panel)return;
+  const msgs=(conv?.messages)||[];
+  panel.innerHTML=`
+    <div style="padding:10px 14px;background:var(--sidebar);border-bottom:1px solid var(--border);
+      display:flex;align-items:center;gap:10px">
+      <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--blue));
+        display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:white">
+        ${(conv?.from||'?')[0].toUpperCase()}</div>
+      <div>
+        <div style="font-weight:700;font-size:13.5px">${conv?.from||"Noma'lum"}</div>
+        <div style="font-size:10.5px;color:var(--cyan)">${conv?.source==='instagram'?'📸 Instagram':'✈️ Telegram'}</div>
+      </div>
+    </div>
+    <div id="botMsgScroll" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:8px">
+      ${msgs.map(m=>`<div style="display:flex;flex-direction:${m.role==='user'?'row':'row-reverse'};align-items:flex-end;gap:7px">
+        <div style="width:26px;height:26px;border-radius:50%;background:${m.role==='user'?'linear-gradient(135deg,var(--cyan),var(--blue))':'linear-gradient(135deg,var(--purple),var(--purple2))'};
+          display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white">
+          ${m.role==='user'?(conv?.from||'?')[0].toUpperCase():'🤖'}</div>
+        <div style="max-width:72%;padding:9px 13px;border-radius:${m.role==='user'?'4px 14px 14px 14px':'14px 4px 14px 14px'};
+          background:${m.role==='user'?'var(--card2)':'rgba(124,58,237,.2)'};font-size:13px;line-height:1.5">
+          ${(m.text||'').replace(/\n/g,'<br>')}</div>
+      </div>`).join('')}
+    </div>
+    <div style="padding:10px 14px;background:var(--sidebar);border-top:1px solid var(--border)">
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <textarea id="botReplyText" placeholder="Javob yozing..." rows="2"
+          style="flex:1;padding:9px 12px;background:var(--card2);border:1.5px solid var(--border);
+          border-radius:10px;color:var(--text);font-size:13px;outline:none;font-family:inherit;resize:none"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendBotReplyX('${chatId}')}"></textarea>
+        <button onclick="sendBotReplyX('${chatId}')" style="padding:9px 16px;background:linear-gradient(135deg,var(--cyan),var(--blue));
+          border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer">✈️</button>
+      </div>
+    </div>`;
+  setTimeout(()=>{const s=document.getElementById('botMsgScroll');if(s)s.scrollTop=s.scrollHeight;},50);
+  // info panel
+  const info=document.getElementById('botInfoPanel');
+  if(info) info.innerHTML=`<div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;margin-bottom:12px">Ma'lumot</div>
+    <div style="text-align:center;padding:10px 0">
+      <div style="width:50px;height:50px;border-radius:50%;margin:0 auto 8px;
+        background:linear-gradient(135deg,var(--cyan),var(--blue));
+        display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:white">
+        ${(conv?.from||'?')[0].toUpperCase()}</div>
+      <div style="font-weight:700;font-size:14px">${conv?.from||"Noma'lum"}</div>
+      <div style="font-size:11px;color:var(--cyan);margin-top:3px">${conv?.source==='instagram'?'📸 Instagram':'✈️ Telegram'}</div>
+    </div>
+    <div style="margin-top:14px;display:flex;flex-direction:column;gap:7px">
+      <button onclick="openNewOrderModal(null,'${(conv?.from||'').replace(/'/g,'')}','')"
+        style="width:100%;padding:8px;background:rgba(59,130,246,.15);border:1.5px solid rgba(59,130,246,.4);
+        border-radius:9px;color:var(--blue);font-size:12px;font-weight:700;cursor:pointer">📋 Yangi buyurtma</button>
+    </div>`;
+  // list yangilash
+  renderBot();
+}
+
+function sendBotReplyX(chatId){
+  const inp=document.getElementById('botReplyText');
+  const text=inp?.value.trim();
+  if(!text)return;
+  if(window._ws&&window._ws.readyState===1) window._ws.send(JSON.stringify({type:'tg_reply',chatId,text}));
+  const chats=DB.get('bot_chats');
+  const conv=chats.find(c=>c.chatId===chatId);
+  if(conv){if(!conv.messages)conv.messages=[];conv.messages.push({role:'bot',text,date:new Date().toISOString()});DB.set('bot_chats',chats);}
+  if(inp)inp.value='';
+  openBotChatX(chatId);
+  toast('✈️ Yuborildi');
+}
+
+function _clearBotChats(){
+  if(!confirm("Barcha bot xabarlarini o'chirishni xohlaysizmi?"))return;
+  DB.set('bot_chats',[]);activeBotChat=null;
+  const b=document.getElementById('navBotBadge');if(b)b.style.display='none';
+  renderBot();toast("Tozalandi",'info');
+}
+
+function openTestBotMsgModal(){
+  openModal('modalTestBot',`
+    <div class="modal-header"><div class="modal-title">🧪 Test Xabar</div>
+      <button class="modal-close" onclick="closeModal('modalTestBot')">✕</button></div>
+    <div class="modal-body">
+      <div class="grid-2">
+        <div class="form-group"><label>Kimdan</label><input id="tbFrom" value="Alisher"></div>
+        <div class="form-group"><label>Manba</label>
+          <select id="tbSource" style="width:100%;padding:9px 12px;background:var(--card2);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none">
+            <option value="telegram">✈️ Telegram</option><option value="instagram">📸 Instagram</option></select></div>
+      </div>
+      <div class="form-group"><label>Xabar</label>
+        <textarea id="tbMsg" rows="3" style="resize:vertical">Salom! Samsung TV ekrani yonmayapti, narxi qancha?</textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalTestBot')">Bekor</button>
+      <button onclick="saveTestBotX()" style="padding:10px 20px;background:linear-gradient(135deg,var(--cyan),var(--blue));border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer">✈️ Yuborish</button>
+    </div>`,'modal-md');
+}
+
+function saveTestBotX(){
+  const from=document.getElementById('tbFrom')?.value.trim();
+  const text=document.getElementById('tbMsg')?.value.trim();
+  const source=document.getElementById('tbSource')?.value;
+  if(!from||!text){toast('To\'ldiring!','error');return;}
+  const chatId='test_'+Date.now();
+  const chats=DB.get('bot_chats');
+  chats.push({id:nextId(chats),chatId,from,source,messages:[{role:'user',text,date:new Date().toISOString()}],lastDate:new Date().toISOString(),unread:1});
+  DB.set('bot_chats',chats);
+  closeModal('modalTestBot');
+  activeBotChat=chatId;
+  toast('📩 Yangi xabar: '+from,'info');
+  if(currentPage==='bot')renderBot();
+  else showPage('bot');
+}
+
+// ================================================================
+//  TO'LIQ RESET MODALI
+// ================================================================
+function openFullResetModal(){
+  const stats={
+    orders:DB.get('orders').length,clients:DB.get('clients').length,
+    trans:DB.get('transactions').length,reminders:DB.get('reminders').length
+  };
+  openModal('modalFullReset',`
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:36px;height:36px;background:rgba(239,68,68,.2);border-radius:10px;
+          display:flex;align-items:center;justify-content:center;font-size:20px">🔄</div>
+        <div class="modal-title" style="color:var(--red)">Tanlangan bo'limlarni tozalash</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modalFullReset')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12.5px;color:var(--text2);margin-bottom:14px;background:rgba(59,130,246,.08);
+        border:1px solid rgba(59,130,246,.25);border-radius:8px;padding:10px 12px">
+        ☑️ Faqat keraklilarini belgilang
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+        ${[
+          {k:'orders',i:'📋',l:'Buyurtmalar',v:stats.orders+' ta'},
+          {k:'transactions',i:'💸',l:'Tranzaksiyalar',v:stats.trans+' ta'},
+          {k:'clients',i:'👥',l:'Mijozlar',v:stats.clients+' ta'},
+          {k:'finance',i:'💰',l:'Balans',v:'0 ga tushirish'},
+          {k:'reminders',i:'🔔',l:'Eslatmalar',v:stats.reminders+' ta'},
+          {k:'wbalance',i:'👨‍🔧',l:'Ishchilar balansi',v:'0 ga'},
+        ].map(item=>`
+        <div id="rst_${item.k}" onclick="toggleRst('${item.k}')"
+          style="display:flex;align-items:center;justify-content:space-between;
+          padding:11px 14px;background:var(--card2);border-radius:10px;cursor:pointer;
+          border:2px solid var(--border);transition:all .15s;user-select:none">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div id="chk_${item.k}" style="width:22px;height:22px;border-radius:6px;border:2px solid var(--border);
+              background:transparent;display:flex;align-items:center;justify-content:center;
+              font-size:14px;font-weight:900;transition:all .15s"></div>
+            <span style="font-size:16px">${item.i}</span>
+            <span style="font-size:13.5px;font-weight:600">${item.l}</span>
+          </div>
+          <span style="font-size:12px;color:var(--text2)">${item.v}</span>
+        </div>`).join('')}
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalFullReset')">Bekor</button>
+      <button id="btnDoRst" onclick="doRst()" disabled
+        style="background:rgba(239,68,68,.35);color:white;border:none;border-radius:10px;
+        padding:11px 24px;font-size:14px;font-weight:800;cursor:not-allowed">
+        🔄 Tozalash
+      </button>
+    </div>
+  `,'modal-md');
+  window._rstSel=new Set();
+}
+
+function toggleRst(k){
+  if(!window._rstSel)window._rstSel=new Set();
+  const chk=document.getElementById('chk_'+k);
+  const lbl=document.getElementById('rst_'+k);
+  if(window._rstSel.has(k)){
+    window._rstSel.delete(k);
+    if(chk){chk.textContent='';chk.style.background='transparent';chk.style.borderColor='var(--border)';}
+    if(lbl){lbl.style.borderColor='var(--border)';lbl.style.background='var(--card2)';}
+  } else {
+    window._rstSel.add(k);
+    if(chk){chk.textContent='✓';chk.style.background='var(--red)';chk.style.borderColor='var(--red)';chk.style.color='white';}
+    if(lbl){lbl.style.borderColor='rgba(239,68,68,.6)';lbl.style.background='rgba(239,68,68,.06)';}
+  }
+  const btn=document.getElementById('btnDoRst');
+  if(btn){const ok=window._rstSel.size>0;btn.disabled=!ok;btn.style.background=ok?'var(--red)':'rgba(239,68,68,.35)';btn.style.cursor=ok?'pointer':'not-allowed';}
+}
+
+function doRst(){
+  const sel=window._rstSel||new Set();
+  if(!sel.size)return;
+  const msgs=[];
+  if(sel.has('orders')){DB.set('orders',[]);const s=DB.getObj('settings');s.orderCounter=0;DB.setObj('settings',s);msgs.push('📋');}
+  if(sel.has('transactions')){DB.set('transactions',[]);msgs.push('💸');}
+  if(sel.has('clients')){DB.set('clients',[]);msgs.push('👥');}
+  if(sel.has('finance')){DB.setObj('finance',{balance:0,totalIncome:0,totalExpense:0});msgs.push('💰');}
+  if(sel.has('reminders')){DB.set('reminders',[]);msgs.push('🔔');}
+  if(sel.has('wbalance')){const u=DB.get('users');u.forEach(x=>{x.balance=0;});DB.set('users',u);msgs.push('👨‍🔧');}
+  closeModal('modalFullReset');
+  toast('✅ Tozalandi: '+msgs.join(' '));
+  window._rstSel=new Set();
+  refreshAll();
+}
+
+
+
 //  FOYDALANUVCHILAR SAHIFASI
 // ================================================================
 function renderUsers(){
